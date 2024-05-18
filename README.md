@@ -9,6 +9,7 @@
 目前已将[duilib]([GitHub - duilib/duilib](https://github.com/duilib/duilib))原版本中部分示例完成了移植，在不同操作系统平台展示出一致的效果。
 
 * windows 操作系统
+  ![360safe_win](https://github.com/mxway/directui/blob/main/images/win_360safe.png)
 
 * Ubuntu 20
 
