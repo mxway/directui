@@ -21,7 +21,7 @@
 * deepin
 
 ![360safe_deepin](https://github.com/mxway/directui/blob/main/images/deepin_360safe.png)
-![list_deepin](https://github.com/mxway/directui/blob/main/images/deepin_360safe.png)
+![list_deepin](https://github.com/mxway/directui/blob/main/images/deepin_list.png)
 
 * kylin
 
