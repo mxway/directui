@@ -15,7 +15,7 @@
 
 * Ubuntu 20
 
-![360safe_ubuntu](https://github.com/mxway/directui/blob/main/images/win_list.png)
+![360safe_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_360safe.png)
 ![list_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_list.png)
 
 * deepin
