@@ -12,6 +12,7 @@
 
 * windows 操作系统
   
+
 ![360safe_win](https://github.com/mxway/directui/blob/main/images/win_360safe.png)
 ![list_win](https://github.com/mxway/directui/blob/main/images/win_list.png)
 
@@ -25,7 +26,11 @@
 ![360safe_deepin](https://github.com/mxway/directui/blob/main/images/deepin_360safe.png)
 ![list_deepin](https://github.com/mxway/directui/blob/main/images/deepin_list.png)
 
-* kylin
+* 银河麒麟
+
+​    ![360safe_kylin](https://github.com/mxway/directui/blob/main/images/kylin_360safe.png)
+
+​    ![list_kylin](https://github.com/mxway/directui/blob/main/images/kylin_list.png)
 
 * UOS
 
