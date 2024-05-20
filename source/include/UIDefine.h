@@ -25,6 +25,10 @@ typedef HFONT       HANDLE_FONT;
 #define UI_APP_QUIT()           ::PostQuitMessage(0)
 #define UI_DESTROY_WINDOW(wnd)  ::DestroyWindow(wnd)
 
+#ifdef _MSC_VER
+#define strcasecmp stricmp
+#endif
+
 #else
 
 typedef struct tagSIZE

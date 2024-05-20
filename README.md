@@ -6,6 +6,89 @@
 ## 简介
 项目目标是将duilib及gtkduilib两个项目进行整合，提供统一的接口。实现一个适合windows、linux以及国产化操作系统的duilib项目，通过简单的xml就能够实现界面效果。为了实现源码能够在不同操作系统，不同的编译器进行编译的目标，所有源码文件的编码格式默认都是UTF8+BOM，这样能够保证无论使用gcc还是vs、在windows还是linux操作系统或是国产化操作系统上进行编译时都不会有编译错误。若使用其它的文件编码格式，源码中存在汉字时可能会造成不同编译器在编译过程中出现错误。
 
+## 源码编译
+
+源码使用cmake进行项目的代码管理。在CMakeLists.txt中会自动根据操作系统将对应的源码文件加入到源码工程中，对于cmake只要cmake版本大小3.11即可，用cmake可以生成Makefile以及vs的源码工程文件。同时要求编译器需要支持c++11特性，在编译时需要判断自己的编译器是否支持c++11特性，对于gcc工具链高于4.8.5的版本即可。目前项目所使用的编译器在windows以及linux操作系统平台下都是使用gcc编译工具链，后续支持windows下vs编译器。
+
+### Windows编译
+
+windows下使用mingw对项目进行编译。编译过程如下
+
+切换到项目source目录下。
+
+* 系统环境检查
+
+  确定系统中是否支持cmake以及g++编译器。
+
+  ```bat
+  cmake --version
+  ```
+
+  输出以下信息
+
+  ```bat
+  cmake version 3.16.6
+  
+  CMake suite maintained and supported by Kitware (kitware.com/cmake).
+  ```
+
+  确定系统中的mingw中g++版本
+
+  ```c++
+  g++ --version
+  ```
+
+  输出如下信息，确保g++的目录被添加到系统的PATH环境变量中。
+
+  ```bat
+  g++ (MinGW-W64 i686-posix-dwarf, built by Brecht Sanders) 7.5.0
+  Copyright (C) 2017 Free Software Foundation, Inc.
+  This is free software; see the source for copying conditions.  There is NO
+  warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+  ```
+
+* 编译源码
+
+  执行如下命令
+
+  ```bat
+  mkdir build
+  cd build
+  cmake ../ -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles"
+  mingw32-make -j4
+  ```
+
+​	以上命令执行完成后在build目录下生成可执行文件。 双击相应的可执行文件查看demo效果。
+
+### Linux编译
+
+在Linux操作系统下依赖于gtk库。所以在编译前需要确定系统中是否已安装了gtk库。以ubuntu为例，安装gtk命令如下
+
+```shell
+sudo apt install libgtk-3-dev
+```
+
+同时在Linux系统下也需要检查是否安装了cmake以及gcc编译工具链。
+
+```shell
+cmake --version
+g++ --version
+```
+
+分别用于查看系统中是否安装了cmake以及g++。
+
+**代码编译**
+
+切换到项目source目录下执行以下命令
+
+```shell
+mkdir build && cd build
+cmake ../ -DCMAKE_BUILD_TYPE=Release
+make -j4
+```
+
+执行以上命令后在build目录生成可执行文件。双击或是在命令行中输入可执行文件名运行程序查看软件运行效果。
+
 ## 效果示例
 
 目前已将[duilib]([GitHub - duilib/duilib](https://github.com/duilib/duilib))原版本中部分示例完成了移植，在不同操作系统平台展示出一致的效果。
