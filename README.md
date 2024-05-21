@@ -125,7 +125,7 @@ make -j4
 
 - [ ] DrawHtml功能目前已完成window操作系统的W版本修改工作。Linux已完成DrawHtml大部分功能移植，但是对于选中文本背景色功能还未实现
 
-- [ ] Edit控件不使用原版中的代码，使用自绘控件功能，目前windows已完成Edit部分功能开发；可支持输入法输入文本，backspace删除文字、delete删除文字、home光标定位、end光标定位功能，但不支持全选。Linux只能显示文字，还不能输入文本。
+- [ ] Edit控件不使用原版中的代码，使用自绘控件功能，目前windows及linux已完成Edit部分基础功能；可支持输入法输入文本，backspace删除文字、delete删除文字、home光标定位、end光标定位功能，但不支持全选以及鼠标选择范围，删除选中文字功能。
 
 - [ ] Duilib原版本中的其它示例的移植
 
