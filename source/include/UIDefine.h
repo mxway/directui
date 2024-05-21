@@ -63,6 +63,9 @@ typedef unsigned char *LPBYTE;
 #if !defined(CharNext)
 inline const char* CharNext(const char *p){
     u_char  character = *p;
+    if(*p == 0){
+        return p;
+    }
     if( (character & 0x80) == 0){
         return (p+1);
     }else if( (character >> 5) == 0B110){
@@ -119,6 +122,10 @@ inline const char* CharPrev(const char *start, const char *current)
 #define VK_SPACE        GDK_KEY_space
 #define VK_RETURN       GDK_KEY_Return
 #define VK_ESCAPE       GDK_KEY_Escape
+#define VK_LEFT         GDK_KEY_Left
+#define VK_RIGHT        GDK_KEY_Right
+#define VK_BACKSPACE    GDK_KEY_BackSpace
+#define VK_DELETE       GDK_KEY_Delete
 
 #define SB_LINEUP       GDK_SCROLL_UP
 #define SB_LINEDOWN     GDK_SCROLL_DOWN

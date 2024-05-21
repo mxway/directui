@@ -299,3 +299,7 @@ void UIEditInternal::ShowCaretAndSetImmPosition() {
     composition.ptCurrentPos.y = rcItem.bottom;
     ::ImmSetCompositionWindow(m_hIMC, &composition);
 }
+
+void UIEdit::DrawCaret() {
+    
+}

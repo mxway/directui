@@ -57,6 +57,7 @@ public:
     uint32_t        GetCharNumber()const;
 private:
     void            InitInternal();
+    void            DrawCaret();
 protected:
     uint32_t        m_maxChar;
     bool            m_readOnly;

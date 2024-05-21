@@ -236,4 +236,5 @@ void UIEdit::PaintText(HANDLE_DC hDC) {
 				m_fontId, DT_SINGLELINE | m_textStyle);
 
     }
+    this->DrawCaret();
 }

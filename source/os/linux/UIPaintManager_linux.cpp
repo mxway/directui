@@ -187,10 +187,34 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 m_pRoot->NeedUpdate();
             }
             return false;
-        //case DUI_WM_KEYPRESS:
-            //auto *keyEvent = (GdkEventKey *)(wParam);
-            //cout<<"PressKeyValue:"<<hex<<keyEvent->keyval<<dec<<endl;
-        //    return false;
+        case DUI_WM_KEYPRESS:
+        {
+            auto *eventKey = (GdkEventKey*)(wParam);
+            if(m_pFocus == nullptr){
+                return false;
+            }
+            if(eventKey->keyval == VK_ESCAPE ){
+                TEventUI  event;
+                event.pSender = m_pFocus;
+                event.Type = UIEVENT_KILLFOCUS;
+                event.dwTimestamp = UIGetTickCount();
+                event.wKeyState = MapKeyState(eventKey->state);
+                event.wParam = wParam;
+                event.lParam = lParam;
+                m_pFocus->DoEvent(event);
+                m_pFocus = nullptr;
+                return true;
+            }
+            TEventUI    event;
+            event.pSender = m_pFocus;
+            event.Type = UIEVENT_KEYDOWN;
+            event.dwTimestamp = UIGetTickCount();
+            event.wKeyState = MapKeyState(eventKey->state);
+            event.wParam = wParam;
+            event.lParam = lParam;
+            m_pFocus->DoEvent(event);
+            return true;
+        }
         case DUI_WM_MOUSEPRESS:
         {
             auto *Event = (GdkEventButton*)wParam;
