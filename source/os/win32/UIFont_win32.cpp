@@ -39,7 +39,7 @@ HANDLE_FONT  UIFont::Create(){
 //    int copyBytes = m_strFontName.GetLength() >= LF_FACESIZE
 //                ? (LF_FACESIZE -1)*sizeof(wchar_t): m_strFontName.GetLength() * sizeof(wchar_t);
     wchar_t *wideFontName = Utf8ToUcs2(m_strFontName.GetData(), -1);
-    int copyBytes = wcslen(wideFontName) >= LF_FACESIZE?(LF_FACESIZE-1)*sizeof(wchar_t):(wcslen(wideFontName)+1)*sizeof(wchar_t);
+    size_t copyBytes = wcslen(wideFontName) >= LF_FACESIZE?(LF_FACESIZE-1)*sizeof(wchar_t):(wcslen(wideFontName)+1)*sizeof(wchar_t);
     memcpy(lf.lfFaceName, wideFontName,copyBytes );
     delete []wideFontName;
     lf.lfCharSet = DEFAULT_CHARSET;

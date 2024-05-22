@@ -107,7 +107,7 @@ void UIPaintManager::Invalidate(RECT &rcItem) {
     ::InvalidateRect(m_paintWnd, &rcItem, FALSE);
 }
 
-bool UIPaintManager::MessageHandler(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT &lRes) {
+bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam, long &lRes) {
     if( m_paintWnd == nullptr ) return false;
     switch (uMsg) {
         case WM_ERASEBKGND:

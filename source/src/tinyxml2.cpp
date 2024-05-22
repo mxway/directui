@@ -2390,7 +2390,7 @@ namespace tinyxml2
             return _errorID;
         }
 
-        const size_t size = static_cast<size_t>(filelength);
+        const DWORD size = static_cast<DWORD>(filelength);
         TIXMLASSERT( _charBuffer == 0 );
         _charBuffer = new char[size+1];
         DWORD  read = 0;

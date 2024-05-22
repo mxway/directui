@@ -26,9 +26,15 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 else()
     ## 对于release版本，windows下不显示控制台窗口。
     if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mwindows")
+		if(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
+        else()
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mwindows")
+		endif()
     endif()
 endif()
+
+add_library(DuiLib SHARED ${OS_SRC_FILES} ${SRC_FILES})
 
 include_directories(include)
 add_subdirectory(demo)

@@ -1,8 +1,9 @@
 ﻿#include <UIRenderClip.h>
 #include <cmath>
 
-struct UIRenderClipPrivate
+class UIRenderClipPrivate
 {
+public:
     UIRenderClipPrivate()
         : m_rcItem{0,0,0,0},
         m_roundClip {false},

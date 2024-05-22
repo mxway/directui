@@ -26,7 +26,7 @@ typedef HFONT       HANDLE_FONT;
 #define UI_DESTROY_WINDOW(wnd)  ::DestroyWindow(wnd)
 
 #ifdef _MSC_VER
-#define strcasecmp stricmp
+#define strcasecmp _stricmp
 #endif
 
 #else
@@ -186,7 +186,7 @@ typedef struct tagTNotifyUI
     UIString sType;
     UIString sVirtualWnd;
     UIControl  *pSender;
-    uint32_t   dwTimestamp;
+    uint64_t   dwTimestamp;
     POINT      ptMouse;
     WPARAM     wParam;
     LPARAM     lParam;
@@ -286,7 +286,7 @@ typedef struct tagTEventUI
 {
     int Type;
     UIControl   *pSender;
-    uint32_t    dwTimestamp;
+    uint64_t    dwTimestamp;
     POINT       ptMouse;
     uint16_t        chKey;
     uint16_t    wKeyState;
@@ -418,8 +418,8 @@ typedef struct tagTEventUI
 #define SCROLLBAR_LINESIZE      8
 
 #ifndef CLAMP
-#define MAX std::max
-#define MIN std::min
+#define MAX max
+#define MIN min
 #define CLAMP(x,a,b) (MIN(b,MAX(a,x)))
 #endif
 

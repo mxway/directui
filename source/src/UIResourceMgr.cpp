@@ -25,7 +25,7 @@ UIFont *UIResourceMgr::GetFont(int fontId) {
 }
 
 void UIResourceMgr::ReleaseAllFont() {
-    for (uint32_t i = 0; i < m_fontMapping.GetSize(); i++) {
+    for (int i = 0; i < m_fontMapping.GetSize(); i++) {
         UIString key = m_fontMapping.GetAt(i);
         auto *uiFont = static_cast<UIFont *>(m_fontMapping.Find(key));
         delete uiFont;

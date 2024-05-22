@@ -35,8 +35,8 @@ static void RGBtoHSL(uint32_t ARGB, float* H, float* S, float* L) {
             nR = (R<0?0:(R>255?255:R))/255,
             nG = (G<0?0:(G>255?255:G))/255,
             nB = (B<0?0:(B>255?255:B))/255,
-            m = std::min(std::min(nR,nG),nB),
-            M = std::max(std::max(nR,nG),nB);
+            m = min(min(nR,nG),nB),
+            M = max(max(nR,nG),nB);
     *L = (m + M)/2;
     if (M==m) *H = *S = 0;
     else {

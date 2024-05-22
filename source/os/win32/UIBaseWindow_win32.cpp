@@ -239,7 +239,7 @@ long UIBaseWindow::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
             bHandle = false;
     }
     if(bHandle)return lRes;
-    return ::DefWindowProcW(this->GetWND(),uMsg, wParam, lParam);
+    return (long)::DefWindowProcW(this->GetWND(), uMsg, wParam, lParam);
 }
 
 long UIBaseWindow::OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {

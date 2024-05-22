@@ -3,6 +3,7 @@
 #include <exception>
 #include <stdexcept>
 #include <cstring>
+#include "UIDefine.h"
 
 UIString::UIString()
     :m_pstr {m_szBuffer},
@@ -70,7 +71,7 @@ int UIString::GetLength() const {
 }
 
 char UIString::GetAt(int nIndex) const {
-    if(nIndex >= strlen(m_pstr)){
+    if(nIndex >= (int)strlen(m_pstr)){
         throw std::out_of_range("Invalid Index");
     }
     return m_pstr[nIndex];

@@ -274,7 +274,7 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
             continue;
         }
         else {
-            uint32_t cchLen = strlen(pstrClass);
+            size_t cchLen = strlen(pstrClass);
             switch( cchLen ) {
                 case 4:
                     if( strcasecmp(pstrClass, DUI_CTR_EDIT) == 0 ) {

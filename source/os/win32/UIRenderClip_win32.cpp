@@ -1,8 +1,9 @@
 ﻿#include <UIRenderClip.h>
 #include <cassert>
 
-struct UIRenderClipPrivate
+class UIRenderClipPrivate
 {
+public:
     RECT        rcItem;
     HDC         hDC;
     HRGN        hRgn;
