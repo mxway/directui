@@ -22,7 +22,12 @@ endif()
 FILE(GLOB_RECURSE SRC_FILES "src/*.cpp")
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g3 -fprofile-arcs -ftest-coverage")
+    add_definitions(-DDebug)
+    if(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+        
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g3 -fprofile-arcs -ftest-coverage")
+    endif()
 else()
     ## 对于release版本，windows下不显示控制台窗口。
     if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
@@ -34,7 +39,11 @@ else()
     endif()
 endif()
 
-add_library(DuiLib SHARED ${OS_SRC_FILES} ${SRC_FILES})
+if(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+    add_library(DuiLib ${OS_SRC_FILES} ${SRC_FILES})
+else()
+    add_library(DuiLib SHARED ${OS_SRC_FILES} ${SRC_FILES})
+endif()
 
 include_directories(include)
 add_subdirectory(demo)
