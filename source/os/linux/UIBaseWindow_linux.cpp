@@ -111,12 +111,12 @@ UIBaseWindow::UIBaseWindow()
 
 }
 
-HANDLE_WND UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, int x, int y, int nWidth, int nHeight) {
+static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uint32_t style, int x,int y,int nWidth,int nHeight,UIBaseWindow *window){
     GtkWidget *widget = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     if(GTK_IS_WINDOW(parent)){
         gtk_widget_set_parent(widget, parent);
     }
-    this->SetWND(widget);
+    window->SetWND(widget);
     gtk_widget_set_app_paintable(widget, TRUE);
     gtk_window_set_title(GTK_WINDOW(widget), className.GetData());
 
@@ -140,22 +140,35 @@ HANDLE_WND UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, in
                           GDK_ENTER_NOTIFY_MASK             |
                           GDK_LEAVE_NOTIFY_MASK             |
                           GDK_FOCUS_CHANGE_MASK);
-    g_signal_connect(G_OBJECT(widget),"size-allocate", G_CALLBACK(wrap_size),this);
-    g_signal_connect(G_OBJECT(widget), "motion-notify-event", G_CALLBACK(wrap_motion_notify), this);
-    g_signal_connect(G_OBJECT(widget), "button-press-event", G_CALLBACK(wrap_button_press), this);
-    g_signal_connect(G_OBJECT(widget), "button-release-event", G_CALLBACK(wrap_button_release), this);
-    g_signal_connect(G_OBJECT(widget), "scroll-event", G_CALLBACK(wrap_scroll_event),this);
-    g_signal_connect(G_OBJECT(widget), "enter-notify-event", G_CALLBACK(wrap_enter_notify), this);
-    g_signal_connect(G_OBJECT(widget), "leave-notify-event", G_CALLBACK(wrap_leave_notify), this);
-    g_signal_connect(G_OBJECT(widget), "key-press-event", G_CALLBACK(wrap_key_press), this);
-    g_signal_connect(G_OBJECT(widget), "key-release-event", G_CALLBACK(wrap_key_release), this);
-    g_signal_connect(G_OBJECT(widget), "delete-event", G_CALLBACK(wrap_delete_event), this);
-    g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(wrap_destroy), this);
-    g_signal_connect(G_OBJECT(widget), "draw", G_CALLBACK(wrap_draw), this);
-    g_signal_connect(G_OBJECT(widget), "screen-changed", G_CALLBACK(wrap_screen_change),this);
-    this->HandleMessage(DUI_WM_CREATE, (WPARAM)widget, (LPARAM)nullptr);
-    wrap_screen_change(widget, nullptr, nullptr);
+    g_signal_connect(G_OBJECT(widget),"size-allocate", G_CALLBACK(wrap_size),window);
+    g_signal_connect(G_OBJECT(widget), "motion-notify-event", G_CALLBACK(wrap_motion_notify), window);
+    g_signal_connect(G_OBJECT(widget), "button-press-event", G_CALLBACK(wrap_button_press), window);
+    g_signal_connect(G_OBJECT(widget), "button-release-event", G_CALLBACK(wrap_button_release), window);
+    g_signal_connect(G_OBJECT(widget), "scroll-event", G_CALLBACK(wrap_scroll_event),window);
+    g_signal_connect(G_OBJECT(widget), "enter-notify-event", G_CALLBACK(wrap_enter_notify), window);
+    g_signal_connect(G_OBJECT(widget), "leave-notify-event", G_CALLBACK(wrap_leave_notify), window);
+    g_signal_connect(G_OBJECT(widget), "key-press-event", G_CALLBACK(wrap_key_press), window);
+    g_signal_connect(G_OBJECT(widget), "key-release-event", G_CALLBACK(wrap_key_release), window);
+    g_signal_connect(G_OBJECT(widget), "delete-event", G_CALLBACK(wrap_delete_event), window);
+    g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(wrap_destroy), window);
+    g_signal_connect(G_OBJECT(widget), "draw", G_CALLBACK(wrap_draw), window);
+    g_signal_connect(G_OBJECT(widget), "screen-changed", G_CALLBACK(wrap_screen_change),window);
+    window->HandleMessage(DUI_WM_CREATE, (WPARAM)widget, (LPARAM)nullptr);
+    if(style == GTK_WINDOW_TOPLEVEL){
+        wrap_screen_change(widget, nullptr, nullptr);
+    }
     return widget;
+}
+
+HANDLE_WND
+UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc) {
+    return CreateWindow(parent, className, style,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top, this);
+}
+
+HANDLE_WND
+UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y,
+                     int cx, int cy) {
+    return CreateWindow(parent, className, style, x, y, cx, cy ,this);
 }
 
 void UIBaseWindow::ShowWindow(bool bShow) {

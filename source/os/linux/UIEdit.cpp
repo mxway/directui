@@ -56,7 +56,7 @@ struct UIEditInternal
             int height = 0;
             pango_layout_set_text(layout, start, next-start);
             pango_layout_get_pixel_size(layout, &width, &height);
-            m_textWidthList.InsertAt(++m_currentEditPos,(LPVOID)width);
+            m_textWidthList.InsertAt(++m_currentEditPos,(LPVOID)(long)width);
             start = next;
             next = CharNext(next);
         }
@@ -156,7 +156,7 @@ void UIEditInternal::CalculateCharactersWidth() {
         int width = 0;
         int height = 0;
         pango_layout_get_pixel_size(layout, &width, &height);
-        m_textWidthList.Add((LPVOID)width);
+        m_textWidthList.Add((LPVOID)(long)width);
         start = nextChar;
         nextChar = CharNext(nextChar);
     }
@@ -189,9 +189,9 @@ void UIEditInternal::DrawCaret() {
     }
     RECT rcTextPadding = m_uiEdit->GetTextPadding();
     rect.x = totalWidth + rcItem.left + rcTextPadding.left;
-    rect.y = rcItem.top + rcTextPadding.top;
+    rect.y = rcItem.top + rcTextPadding.top + 4;
     rect.width = 1;
-    rect.height = rcItem.bottom - rcItem.top - 2;
+    rect.height = rcItem.bottom - rcItem.top;
 #if GTK_CHECK_VERSION(3,4,0)
     GtkStyleContext *styleContext = gtk_widget_get_style_context(m_uiEdit->GetManager()->GetPaintWindow());
     PangoLayout *layout = pango_cairo_create_layout(m_uiEdit->GetManager()->GetPaintDC());

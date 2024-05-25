@@ -12,7 +12,8 @@ class UIBaseWindowPrivate
 {
 public:
 
-    HANDLE_WND Create(HANDLE_WND parent, const UIString &className, int x, int y, int nWidth, int nHeight, LPVOID param);
+    //HANDLE_WND Create(HANDLE_WND parent, const UIString &className, int x, int y, int nWidth, int nHeight, LPVOID param);
+    HANDLE_WND Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle,int x,int y,int nWidth, int nHeight,LPVOID param);
     static LRESULT CALLBACK __WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 private:
     bool RegisterWindowClass(const wchar_t *className);
@@ -22,8 +23,28 @@ public:
     UIString    m_className;
 };
 
+//HANDLE_WND
+//UIBaseWindowPrivate::Create(HANDLE_WND parent, const UIString &className, int x, int y, int nWidth, int nHeight, LPVOID param) {
+//    wchar_t *wideClassName = Utf8ToUcs2(className.GetData(),-1);
+//    if(wideClassName == nullptr){
+//        return nullptr;
+//    }
+//    if(!this->RegisterWindowClass(wideClassName)){
+//        delete []wideClassName;
+//        return nullptr;
+//    }
+//    m_hWnd = ::CreateWindowExW(WS_EX_APPWINDOW, wideClassName,
+//                               wideClassName, WS_VISIBLE|WS_OVERLAPPEDWINDOW, x, y, nWidth, nHeight,
+//                               nullptr,
+//                               nullptr,
+//                               GetModuleHandleW(nullptr), param);
+//    delete []wideClassName;
+//    return m_hWnd;
+//}
+
 HANDLE_WND
-UIBaseWindowPrivate::Create(HANDLE_WND parent, const UIString &className, int x, int y, int nWidth, int nHeight, LPVOID param) {
+UIBaseWindowPrivate::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, int x,
+                            int y, int nWidth, int nHeight, LPVOID param) {
     wchar_t *wideClassName = Utf8ToUcs2(className.GetData(),-1);
     if(wideClassName == nullptr){
         return nullptr;
@@ -32,8 +53,8 @@ UIBaseWindowPrivate::Create(HANDLE_WND parent, const UIString &className, int x,
         delete []wideClassName;
         return nullptr;
     }
-    m_hWnd = ::CreateWindowExW(WS_EX_APPWINDOW, wideClassName,
-                               wideClassName, WS_VISIBLE|WS_OVERLAPPEDWINDOW, x, y, nWidth, nHeight,
+    m_hWnd = ::CreateWindowExW(exStyle, wideClassName,
+                               wideClassName, style, x, y, nWidth, nHeight,
                                nullptr,
                                nullptr,
                                GetModuleHandleW(nullptr), param);
@@ -87,8 +108,16 @@ UIBaseWindow::UIBaseWindow()
 
 }
 
-HANDLE_WND UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, int x, int y, int nWidth, int nHeight) {
-    return m_data->Create(parent, className, x, y, nWidth, nHeight, this);
+HANDLE_WND
+UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc) {
+    return m_data->Create(parent,className,style, exStyle,rc.left,rc.top,
+                          rc.right-rc.left, rc.bottom-rc.top,this);
+}
+
+HANDLE_WND
+UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y,
+                     int cx, int cy) {
+    return m_data->Create(parent, className, style, exStyle,x,y,cx,cy,this);
 }
 
 void UIBaseWindow::ShowWindow(bool bShow) {

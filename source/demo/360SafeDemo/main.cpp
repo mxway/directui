@@ -20,7 +20,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                                 u8"360SafeRes";
     UIResourceMgr::GetInstance().SetResourcePath(resourcePath);
     MainFrame   mainFrame;
-    mainFrame.Create(nullptr,UIString{u8"计算机测试"},0,0, 500,400);
+    mainFrame.Create(nullptr,UIString{u8"计算机测试"},UI_WNDSTYLE_FRAME,0,0,0, 500,400);
     mainFrame.CenterWindow();
     mainFrame.ShowWindow();
     UIPaintManager::MessageLoop();

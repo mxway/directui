@@ -16,7 +16,7 @@
 <Button name="closebtn" text="" tooltip="" float="false" bordersize="0" width="41" height="21" bkcolor="#FFB9D1EF" bkcolor2="#FF757676" bordercolor="#FF000000" maxheight="20" maxwidth="41" normalimage="file='Common.bmp' source='0,60,41,80'" hotimage="file='Common.bmp' source='41,60,82,80'" pushedimage="file='Common.bmp' source='82,60,123,80'"  />
 </HorizontalLayout>
 <HorizontalLayout name="" text="" tooltip="" float="false" bordersize="0" height="28" bkcolor="#006B93B2">
-<Edit name="" text="Demo from mbstudio.cn / meineson" tooltip="" float="false" bordersize="1" height="28" bkcolor="#ff000000" borderround="5,5" bordercolor="#FF164976" maxheight="28" bkimage="file='Search.bmp' corner='3,1,3,1'" />
+<Edit name="" text="Demo from mbstudio.cn / meineson" tooltip="" float="false" bordersize="1" height="28" bkcolor="#ff000000" borderround="15,15" bordercolor="#FF164976" maxheight="28" bkimage="file='Search.bmp' corner='3,1,3,1'" />
 <Button name="" text="" tooltip="" float="false" bordersize="0" width="120" height="45" bordercolor="#FF000000" maxheight="28" maxwidth="28" normalimage="file='zoom.bmp' source='30,0,60,28'" hotimage="file='zoom.bmp' source='60,0,90,28'" pushedimage="file='zoom.bmp' source='90,0,120,28'"/>
 <Button name="" textcolor="#FFFFFFFF" text="资源库" tooltip="" float="false" bordersize="0" width="90" height="30" bkimage="file='ico.png' dest='0,6,18,24'" bkcolor2="#00757676" bordercolor="#FF000000" maxheight="28" maxwidth="150" hotimage="file='resrc_btn.bmp' source='0,28,79,56'" pushedimage="file='resrc_btn.bmp' source='0,56,79,84'" />
 </HorizontalLayout>
