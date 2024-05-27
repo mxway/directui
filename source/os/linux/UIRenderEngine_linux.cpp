@@ -507,6 +507,17 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
         pango_layout_set_single_paragraph_mode(Layout, FALSE);
     }
 
+    bool shouldReleaseAttrList = false;
+    PangoAttrList  *attrList = pango_layout_get_attributes(Layout);
+    if(font->GetUnderline()){
+        if(attrList == nullptr){
+            attrList = pango_attr_list_new();
+            shouldReleaseAttrList = true;
+        }
+        pango_attr_list_insert(attrList, pango_attr_underline_new(PANGO_UNDERLINE_SINGLE));
+        pango_layout_set_attributes(Layout, attrList);
+    }
+
 
     //
     // set draw width
@@ -552,7 +563,9 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
     pango_cairo_update_layout(hDC, Layout);
     pango_cairo_show_layout(hDC, Layout);
 
-
+    if(shouldReleaseAttrList){
+        pango_attr_list_unref(attrList);
+    }
     g_object_unref(Layout);
     cairo_restore(hDC);
 }
