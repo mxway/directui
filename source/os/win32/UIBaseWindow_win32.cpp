@@ -54,13 +54,13 @@ bool UIBaseWindowPrivate::RegisterWindowClass(const wchar_t *className) {
     wndClass.hCursor = ::LoadCursor(nullptr, IDC_ARROW);
     wndClass.lpszClassName = className;
     ATOM ret = RegisterClassExW(&wndClass);
-    return ret != NULL || ::GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
+    return ret != 0 || ::GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
 }
 
 LRESULT CALLBACK UIBaseWindowPrivate::__WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    UIBaseWindow* pThis = NULL;
+    UIBaseWindow* pThis = nullptr;
     if( uMsg == WM_NCCREATE ) {
-        LPCREATESTRUCT lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
+        auto lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
         pThis = static_cast<UIBaseWindow*>(lpcs->lpCreateParams);
         pThis->SetWND(hWnd);
         ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, reinterpret_cast<LPARAM>(pThis));

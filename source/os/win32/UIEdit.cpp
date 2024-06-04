@@ -35,6 +35,10 @@ private:
     UIEdit          *m_uiEdit;
     int             m_currentEditPos;
     HIMC            m_hIMC;
+
+    void CalculateForPasswordCharactersWidth();
+
+    void CalculateForNormalChartersWidth();
 };
 
 UIEditInternal::UIEditInternal(UIEdit *uiEdit)
@@ -112,22 +116,47 @@ uint32_t UIEditInternal::CalculateTextOffset() {
 }
 
 void UIEditInternal::CalculateForCharactersWidth() {
+    if(m_uiEdit->IsPasswordMode()){
+        CalculateForPasswordCharactersWidth();
+        return;
+    }
+    CalculateForNormalChartersWidth();
+}
+
+void UIEditInternal::CalculateForNormalChartersWidth() {
     wchar_t *wideText = Utf8ToUcs2(m_uiEdit->GetText().GetData());
     m_text = wstring{wideText};
     delete wideText;
     UIFont *fontHandle = UIResourceMgr::GetInstance().GetFont(m_uiEdit->GetFont());
-    auto hOldFont = (HFONT)::SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
-                                          fontHandle->GetHandle());
+    auto hOldFont = (HFONT) SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
+                                         fontHandle->GetHandle());
     SIZE szSpace = {0};
     m_textWidthList.Empty();
     m_textWidthList.Add((LPVOID)0);
-    for(int i=0;i<m_text.length();i++){
-        ::GetTextExtentPoint32W(m_uiEdit->GetManager()->GetPaintDC(),
-                                m_text.c_str()+i,1, &szSpace);
+    for(int i=0; i < m_text.length(); i++){
+        GetTextExtentPoint32W(m_uiEdit->GetManager()->GetPaintDC(),
+                              m_text.c_str() + i, 1, &szSpace);
         m_textWidthList.Add((LPVOID)szSpace.cx);
     }
-    ::SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
-                   hOldFont);
+    SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
+                 hOldFont);
+}
+
+void UIEditInternal::CalculateForPasswordCharactersWidth() {
+    SIZE szSpace = {0};
+    UIFont *fontHandle = UIResourceMgr::GetInstance().GetFont(m_uiEdit->GetFont());
+    auto hOldFont = (HFONT) SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
+                                         fontHandle->GetHandle());
+    char passwordChar = m_uiEdit->GetPasswordChar();
+    GetTextExtentPoint32A(m_uiEdit->GetManager()->GetPaintDC(),
+                          &passwordChar, 1, &szSpace);
+    SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
+                 hOldFont);
+    m_textWidthList.Empty();
+    m_textWidthList.Add((LPVOID)0);
+    for(int i=0; i < m_text.length(); i++){
+        m_textWidthList.Add((LPVOID)szSpace.cx);
+    }
 }
 
 void UIEditInternal::CalculateCurrentEditPositionFromMousePoint(POINT pt) {
@@ -168,8 +197,15 @@ void UIEditInternal::InsertCharAtEditPosition(wchar_t character) {
     auto hOldFont = (HFONT)::SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
                                           fontHandle->GetHandle());
     SIZE szSpace = {0};
-    ::GetTextExtentPoint32W(m_uiEdit->GetManager()->GetPaintDC(),
-                            str,1, &szSpace);
+    if(m_uiEdit->IsPasswordMode()){
+        //文本框显示密码字符，这时需要计算密码字符的宽度
+        char passwordChar = m_uiEdit->GetPasswordChar();
+        ::GetTextExtentPoint32A(m_uiEdit->GetManager()->GetPaintDC(),
+                                &passwordChar,1, &szSpace);
+    }else{
+        ::GetTextExtentPoint32W(m_uiEdit->GetManager()->GetPaintDC(),
+                                str,1, &szSpace);
+    }
     ::SelectObject(m_uiEdit->GetManager()->GetPaintDC(),hOldFont);
     m_textWidthList.InsertAt(m_currentEditPos, (LPVOID)szSpace.cx);
     this->ShowCaretAndSetImmPosition();

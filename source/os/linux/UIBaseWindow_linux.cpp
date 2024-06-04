@@ -61,7 +61,6 @@ static gboolean wrap_leave_notify(GtkWidget *widget, GdkEventCrossing *event, UI
 
 static gboolean wrap_key_press(GtkWidget *widget, GdkEventKey  *event, UIBaseWindow *pWindow)
 {
-    printf("Key Press:%p\n",pWindow);
     return (gboolean)pWindow->HandleMessage(DUI_WM_KEYPRESS, (WPARAM)event, nullptr);
 }
 

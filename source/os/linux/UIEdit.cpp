@@ -28,40 +28,10 @@ struct UIEditInternal
     void    DrawCaret();
     void    OnKeyDown(TEventUI &event);
     //
-    int     GetCharactersBytes(int numberOfChars){
-        if(numberOfChars > GetNumberOfCharacters(UIString{m_text.c_str()})){
-            numberOfChars = GetNumberOfCharacters(UIString{m_text.c_str()});
-        }
-        int totalBytes = 0;
-        const char *start = m_text.c_str();
-        const char *end = start + m_text.length();
-        const char *next = CharNext(start);
-        while(numberOfChars-- && start<end){
-            totalBytes += (next - start);
-            start = next;
-            next = CharNext(start);
-        }
-        return totalBytes;
-    }
+    int     GetCharactersBytes(int numberOfChars);
 
-    void   InsertNewCharactersWidth(const char *insertString){
-        int numberOfCharacters = GetNumberOfCharacters(UIString{insertString});
-        const char *start = insertString;
-        const char *next = CharNext(insertString);
-        PangoLayout *layout = pango_cairo_create_layout(m_uiEdit->GetManager()->GetPaintDC());
-        UIFont *font = UIResourceMgr::GetInstance().GetFont(m_uiEdit->GetFont());
-        pango_layout_set_font_description(layout, font->GetHandle());
-        while(numberOfCharacters--){
-            int width = 0;
-            int height = 0;
-            pango_layout_set_text(layout, start, next-start);
-            pango_layout_get_pixel_size(layout, &width, &height);
-            m_textWidthList.InsertAt(++m_currentEditPos,(LPVOID)(long)width);
-            start = next;
-            next = CharNext(next);
-        }
-        g_object_unref(layout);
-    }
+    void   InsertNewCharactersWidth(const char *insertString);
+
 private:
     GtkIMContext    *m_imContext;
     gulong          m_handlerId;
@@ -69,6 +39,14 @@ private:
     string          m_text;
     UIPtrArray      m_textWidthList;
     int             m_currentEditPos;
+
+    void CalculatePasswordCharactersWidth();
+
+    void CalculateNormalCharactersWidth();
+
+    void UpdateInsertedPasswordCharacterWidth(const char *insertString, PangoLayout *layout);
+
+    void UpdateInsertedNormalTextWidth(const char *insertString, PangoLayout *layout);
 };
 
 static void imm_commit_callback(GtkIMContext *self, gchar *str, gpointer user_data)
@@ -143,6 +121,14 @@ void UIEditInternal::OnImmCommit(const gchar *str) {
 }
 
 void UIEditInternal::CalculateCharactersWidth() {
+    if(m_uiEdit->IsPasswordMode()){
+        CalculatePasswordCharactersWidth();
+        return;
+    }
+    CalculateNormalCharactersWidth();
+}
+
+void UIEditInternal::CalculateNormalCharactersWidth() {
     PangoLayout *layout = pango_cairo_create_layout(m_uiEdit->GetManager()->GetPaintDC());
     UIFont *font = UIResourceMgr::GetInstance().GetFont(m_uiEdit->GetFont());
     pango_layout_set_font_description(layout, font->GetHandle());
@@ -161,6 +147,24 @@ void UIEditInternal::CalculateCharactersWidth() {
         nextChar = CharNext(nextChar);
     }
     g_object_unref(layout);
+}
+
+void UIEditInternal::CalculatePasswordCharactersWidth() {
+    PangoLayout *layout = pango_cairo_create_layout(m_uiEdit->GetManager()->GetPaintDC());
+    UIFont *font = UIResourceMgr::GetInstance().GetFont(m_uiEdit->GetFont());
+    pango_layout_set_font_description(layout, font->GetHandle());
+    m_textWidthList.Empty();
+    m_textWidthList.Add((LPVOID)0);
+    char passwordCharacter = m_uiEdit->GetPasswordChar();
+    pango_layout_set_text(layout, &passwordCharacter,1);
+    int width = 0;
+    int height = 0;
+    pango_layout_get_pixel_size(layout, &width, &height);
+    g_object_unref(layout);
+    uint32_t numberOfCharacters = m_uiEdit->GetCharNumber();
+    while(numberOfCharacters--){
+        m_textWidthList.Add((LPVOID)(long)width);
+    }
 }
 
 void UIEditInternal::CalculateCurrentEditPositionFromMousePoint(POINT pt) {
@@ -261,6 +265,62 @@ void UIEditInternal::OnKeyDown(TEventUI &event) {
     }
     if(m_imContext != nullptr){
         gtk_im_context_filter_keypress(m_imContext,(GdkEventKey*)event.wParam);
+    }
+}
+
+int UIEditInternal::GetCharactersBytes(int numberOfChars) {
+    if(numberOfChars > GetNumberOfCharacters(UIString{m_text.c_str()})){
+        numberOfChars = GetNumberOfCharacters(UIString{m_text.c_str()});
+    }
+    int totalBytes = 0;
+    const char *start = m_text.c_str();
+    const char *end = start + m_text.length();
+    const char *next = CharNext(start);
+    while(numberOfChars-- && start<end){
+        totalBytes += (next - start);
+        start = next;
+        next = CharNext(start);
+    }
+    return totalBytes;
+}
+
+void UIEditInternal::InsertNewCharactersWidth(const char *insertString) {
+    PangoLayout *layout = pango_cairo_create_layout(m_uiEdit->GetManager()->GetPaintDC());
+    UIFont *font = UIResourceMgr::GetInstance().GetFont(m_uiEdit->GetFont());
+    pango_layout_set_font_description(layout, font->GetHandle());
+    if(m_uiEdit->IsPasswordMode()){
+        UpdateInsertedPasswordCharacterWidth(insertString, layout);
+    }else{
+        UpdateInsertedNormalTextWidth(insertString, layout);
+    }
+    g_object_unref(layout);
+}
+
+void
+UIEditInternal::UpdateInsertedNormalTextWidth(const char *insertString, PangoLayout *layout) {
+    uint32_t numberOfCharacters = GetNumberOfCharacters(UIString{insertString});
+    const char *start = insertString;
+    const char *next = CharNext(insertString);
+    while(numberOfCharacters--){
+        int width = 0;
+        int height = 0;
+        pango_layout_set_text(layout, start, next-start);
+        pango_layout_get_pixel_size(layout, &width, &height);
+        m_textWidthList.InsertAt(++m_currentEditPos, (LPVOID)(long)width);
+        start = next;
+        next = CharNext(next);
+    }
+}
+
+void UIEditInternal::UpdateInsertedPasswordCharacterWidth(const char *insertString,PangoLayout *layout) {
+    int width = 0;
+    int height = 0;
+    uint32_t numberOfCharacters = GetNumberOfCharacters(UIString{insertString});
+    char passwordCharacter = m_uiEdit->GetPasswordChar();
+    pango_layout_set_text(layout, &passwordCharacter,1);
+    pango_layout_get_pixel_size(layout, &width, &height);
+    while(numberOfCharacters--){
+        m_textWidthList.InsertAt(++m_currentEditPos, (LPVOID)(long)width);
     }
 }
 
