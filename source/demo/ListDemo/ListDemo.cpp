@@ -19,11 +19,11 @@ DUI_END_MESSAGE_MAP()
 
 long ListDemo::OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
     UI_APP_QUIT();
-    return UIBaseWindow::OnDestroy(uMsg, wParam, lParam, bHandled);
+    return UIWindowImpBase::OnDestroy(uMsg, wParam, lParam, bHandled);
 }
 
 long ListDemo::OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    UIBaseWindow::OnCreate(uMsg, wParam, lParam, bHandled);
+    UIWindowImpBase::OnCreate(uMsg, wParam, lParam, bHandled);
     m_pm.Init(this->GetWND());
     UIDlgBuilder    dlgBuilder;
     UIControl *root = dlgBuilder.Create(this->GetSkinFile(),

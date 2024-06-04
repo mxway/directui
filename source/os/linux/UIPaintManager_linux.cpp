@@ -10,8 +10,6 @@
 using namespace std;
 using namespace chrono;
 
-extern bool glbWindowShowed;
-
 typedef struct tagTIMERINFO
 {
     UIControl* pSender;
@@ -95,7 +93,10 @@ void UIPaintManager::MessageLoop() {
 }
 
 void UIPaintManager::Invalidate(RECT &rcItem) {
-    if (!glbWindowShowed){
+    /*if (!glbWindowShowed){
+        return;
+    }*/
+    if(!GDK_IS_WINDOW(gtk_widget_get_window(m_paintWnd))){
         return;
     }
     GdkWindow *gdkWindow;

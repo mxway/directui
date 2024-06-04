@@ -13,7 +13,7 @@ DUI_END_MESSAGE_MAP()
 
 long MainFrame::OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
     UI_APP_QUIT();
-    return UIBaseWindow::OnDestroy(uMsg, wParam, lParam, bHandled);
+    return UIWindowImpBase::OnDestroy(uMsg, wParam, lParam, bHandled);
 }
 
 void MainFrame::OnClick(TNotifyUI &msg) {
@@ -28,7 +28,7 @@ void MainFrame::OnClick(TNotifyUI &msg) {
 }
 
 long MainFrame::OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    UIBaseWindow::OnCreate(uMsg, wParam, lParam, bHandled);
+    UIWindowImpBase::OnCreate(uMsg, wParam, lParam, bHandled);
     m_pm.Init(this->GetWND());
     UIDlgBuilder    dlgBuilder;
     UIControl *root = dlgBuilder.Create(this->GetSkinFile(),

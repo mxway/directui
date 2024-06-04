@@ -22,6 +22,7 @@ using namespace std;
 #define DUI_WM_MOUSEWHEEL           WM_MOUSEWHEEL
 #define DUI_WM_DESTROY              WM_DESTROY
 #define DUI_WM_CREATE               WM_CREATE
+#define DUI_WM_KILLFOCUS            WM_KILLFOCUS
 
 #define UI_WNDSTYLE_FRAME      (WS_VISIBLE | WS_OVERLAPPEDWINDOW)
 #define UI_WNDSTYLE_CHILD      (WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN)
@@ -45,6 +46,7 @@ using namespace std;
 #define DUI_WM_MOUSEWHEEL           0x1000000B
 #define DUI_WM_DESTROY              0x1000000C
 #define DUI_WM_CREATE               0x1000000D
+#define DUI_WM_KILLFOCUS            0x1000000E
 
 #define UI_WNDSTYLE_FRAME      (GTK_WINDOW_TOPLEVEL)
 #define UI_WNDSTYLE_CHILD      (GTK_WINDOW_POPUP)
@@ -57,7 +59,6 @@ class UIBaseWindowPrivate;
 class UIBaseWindow {
 public:
     UIBaseWindow();
-    //HANDLE_WND Create(HANDLE_WND parent, const UIString &className, int x, int y, int nWidth, int nHeight);
 
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc);
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y, int cx,int cy);
@@ -65,7 +66,7 @@ public:
     HANDLE_WND GetWND();
     void       SetWND(HANDLE_WND wndHandle);
     void       Close(){
-        UI_DESTROY_WINDOW(GetWND());
+        UI_CLOSE_WINDOW(GetWND(),0);
     }
     void       CenterWindow();
 
@@ -78,10 +79,10 @@ public:
     virtual long HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam);
     virtual void OnFinalMessage(HANDLE_WND hWnd);
 
-    virtual long OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-    virtual long OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-    virtual long OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-    virtual long OnSize(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+//    virtual long OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+//    virtual long OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+//    virtual long OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+//    virtual long OnSize(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
 
 protected:
     UIPaintManager  m_pm;

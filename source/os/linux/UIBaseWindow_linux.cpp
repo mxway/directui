@@ -4,8 +4,6 @@
 
 using namespace std;
 
-bool glbWindowShowed = false;
-
 class UIBaseWindowPrivate {
 public:
     UIBaseWindowPrivate(){
@@ -63,6 +61,7 @@ static gboolean wrap_leave_notify(GtkWidget *widget, GdkEventCrossing *event, UI
 
 static gboolean wrap_key_press(GtkWidget *widget, GdkEventKey  *event, UIBaseWindow *pWindow)
 {
+    printf("Key Press:%p\n",pWindow);
     return (gboolean)pWindow->HandleMessage(DUI_WM_KEYPRESS, (WPARAM)event, nullptr);
 }
 
@@ -84,8 +83,9 @@ static gboolean wrap_scroll_event(GtkWidget *widget, GdkEvent *event,UIBaseWindo
 
 static void wrap_destroy(GtkWidget *widget, UIBaseWindow *pWindow)
 {
+    g_print("destroy event\n");
     pWindow->HandleMessage(DUI_WM_DESTROY, nullptr, nullptr);
-    glbWindowShowed = false;
+    //glbWindowShowed = false;
     pWindow->OnFinalMessage(nullptr);
 }
 
@@ -100,7 +100,7 @@ static void wrap_screen_change(GtkWidget *widget, GdkScreen *old_screen, gpointe
     }
     else
     {
-        
+
     }
     gtk_widget_set_visual(widget, colormap);
 }
@@ -113,8 +113,9 @@ UIBaseWindow::UIBaseWindow()
 
 static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uint32_t style, int x,int y,int nWidth,int nHeight,UIBaseWindow *window){
     GtkWidget *widget = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    if(GTK_IS_WINDOW(parent)){
-        gtk_widget_set_parent(widget, parent);
+    if(parent!=nullptr){
+        //gtk_widget_get_window()
+        gtk_widget_set_parent_window(widget, gtk_widget_get_window(parent));
     }
     window->SetWND(widget);
     gtk_widget_set_app_paintable(widget, TRUE);
@@ -150,13 +151,14 @@ static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uin
     g_signal_connect(G_OBJECT(widget), "key-press-event", G_CALLBACK(wrap_key_press), window);
     g_signal_connect(G_OBJECT(widget), "key-release-event", G_CALLBACK(wrap_key_release), window);
     g_signal_connect(G_OBJECT(widget), "delete-event", G_CALLBACK(wrap_delete_event), window);
+    //g_signal_connect(G_OBJECT(widget), "focus-out-event", G_CALLBACK(wrap_focus_out_event),window);
     g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(wrap_destroy), window);
     g_signal_connect(G_OBJECT(widget), "draw", G_CALLBACK(wrap_draw), window);
     g_signal_connect(G_OBJECT(widget), "screen-changed", G_CALLBACK(wrap_screen_change),window);
     window->HandleMessage(DUI_WM_CREATE, (WPARAM)widget, (LPARAM)nullptr);
-    if(style == GTK_WINDOW_TOPLEVEL){
-        wrap_screen_change(widget, nullptr, nullptr);
-    }
+    //if(style == GTK_WINDOW_TOPLEVEL){
+    wrap_screen_change(widget, nullptr, nullptr);
+    //}
     return widget;
 }
 
@@ -174,10 +176,8 @@ UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t styl
 void UIBaseWindow::ShowWindow(bool bShow) {
     if(bShow){
         gtk_widget_show(this->GetWND());
-        glbWindowShowed = true;
     }else{
         gtk_widget_hide(this->GetWND());
-        glbWindowShowed = false;
     }
 }
 
@@ -199,77 +199,6 @@ HANDLE_WND UIBaseWindow::GetWND() {
 
 void UIBaseWindow::SetWND(HANDLE_WND wndHandle) {
     m_data->widget = wndHandle;
-}
-
-long OnPaint(HANDLE_WND wndHandle, uint32_t uMsg, WPARAM wParam, LPARAM lParam){
-    return 1;
-}
-
-long OnKeyPress(HANDLE_WND wndHandle, uint32_t uMsg, WPARAM wParam, LPARAM)
-{
-    auto *eventKey = (GdkEventKey*)wParam;
-    if(eventKey->keyval == GDK_KEY_Escape || eventKey->keyval == GDK_KEY_Return){
-        UI_DESTROY_WINDOW(wndHandle);
-    }
-    return 1;
-}
-
-static bool glbLeftButtonPressed = false;
-static gint glbMouseX = 0;
-static gint glbMouseY = 0;
-
-static long OnMousePress(HANDLE_WND wndHandle,uint32_t uMsg, UIPaintManager *paintManager,WPARAM wParam, LPARAM lParam,bool &bHandled)
-{
-    auto *event = (GdkEventButton*)(wParam);
-    if(event->type != GDK_BUTTON_PRESS && event->type!=GDK_2BUTTON_PRESS){
-        bHandled = false;
-        return 0;
-    }
-    if(event->button != 1){
-        bHandled = false;
-        return 0;
-    }
-
-    RECT    rcCaption = paintManager->GetCaptionRect();
-    if(event->y < rcCaption.bottom){
-        POINT pt = {(long)event->x, (long)event->y};
-        auto* pControl = static_cast<UIControl*>(paintManager->FindControl(pt));
-        if( pControl && (pControl->GetClass() != DUI_CTR_BUTTON) &&
-            (pControl->GetClass() != DUI_CTR_OPTION) &&
-            (pControl->GetClass() != DUI_CTR_TEXT) ) {
-            if (event->type == GDK_BUTTON_PRESS) {
-                glbLeftButtonPressed = true;
-                glbMouseX = event->x_root;
-                glbMouseY = event->y_root;
-            } else {
-                GdkWindow *gdkWindow = gtk_widget_get_window(wndHandle);
-                GdkWindowState state = gdk_window_get_state(gdkWindow);
-                if (state & GDK_WINDOW_STATE_MAXIMIZED) {
-                    gtk_window_unmaximize(GTK_WINDOW(wndHandle));
-                } else {
-                    gtk_window_maximize(GTK_WINDOW(wndHandle));
-                }
-            }
-        }
-    }
-    return 1;
-}
-
-static long OnMouseMove(HANDLE_WND widget, uint32_t uMsg, WPARAM wParam, LPARAM lParam)
-{
-    if(!glbLeftButtonPressed){
-        return 0;
-    }
-    auto *eventMotion = (GdkEventMotion*)wParam;
-    glbLeftButtonPressed = false;
-    gtk_window_begin_move_drag(GTK_WINDOW(widget),1,glbMouseX, glbMouseY,eventMotion->time);
-    return 1;
-}
-
-static long OnMouseRelease(HANDLE_WND widget, uint32_t uMsg, WPARAM wParam, LPARAM lParam)
-{
-    glbLeftButtonPressed = false;
-    return 0;
 }
 
 static RECT GetWidgetRectangle(HANDLE_WND widget)
@@ -299,78 +228,14 @@ void UIBaseWindow::CenterWindow() {
         long yTop = (parentWndRect.top + parentWndRect.bottom) / 2 - dlgHeight / 2;
         gtk_window_move(GTK_WINDOW(this->GetWND()),(gint)xLeft, (gint)yTop);
     }else{
-#if 0
-        gint    x = 0;
-        gint    y = 0;
-        gint    width = 0;
-        gint    height = 0;
-        gtk_window_get_position(GTK_WINDOW(this->GetWND()),&x, &y);
-        gtk_window_get_size(GTK_WINDOW(this->GetWND()),&width, &height);
-        //GdkScreen *screen = gtk_widget_get_screen(this->GetWND());
-        GdkDisplay  *display = gtk_widget_get_display(this->GetWND());
-        GdkWindow *gdkWindow = gtk_widget_get_window(this->GetWND());
-        //gdk_display_get_monitor_at_window()
-        GdkMonitor  *monitor = gdk_display_get_monitor_at_window(display,gdkWindow);
-        GdkRectangle   monitorRect = {0};
-        gdk_monitor_get_geometry(monitor, &monitorRect);
-#endif
         gtk_window_set_position(GTK_WINDOW(this->GetWND()),GTK_WIN_POS_CENTER_ALWAYS);
     }
 }
 
 long UIBaseWindow::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
-    bool bHandled = true;
-    long lRes = 0;
-    switch(uMsg){
-        case DUI_WM_CREATE:
-            lRes = this->OnCreate(uMsg, wParam, lParam, bHandled);
-            break;
-        case DUI_WM_PAINT:
-            return OnPaint(this->GetWND(), uMsg, wParam, lParam);
-        case DUI_WM_KEYPRESS:
-            return OnKeyPress(this->GetWND(), uMsg, wParam, lParam);
-        case DUI_WM_MOUSEPRESS:
-            lRes = OnMousePress(this->GetWND(),uMsg,&m_pm,wParam,lParam,bHandled);
-            break;
-        case DUI_WM_MOUSEMOVE:
-            lRes = OnMouseMove(this->GetWND(),uMsg, wParam, lParam);
-            break;
-        case DUI_WM_MOUSERELEASE:
-            lRes = OnMouseRelease(this->GetWND(), uMsg, wParam, lParam);
-            break;
-        case DUI_WM_SIZE:
-            lRes = OnSize(uMsg, wParam, lParam, bHandled);
-            break;
-        case DUI_WM_DESTROY:
-            lRes = OnDestroy(uMsg, wParam, lParam, bHandled);
-            break;
-        case DUI_WM_CLOSE:
-            lRes = OnClose(uMsg, wParam, lParam, bHandled);
-            break;
-        default:
-            break;
-    }
-    return lRes;
+    return 0;
 }
 
 void UIBaseWindow::OnFinalMessage(HANDLE_WND hWnd) {
 
-}
-
-long UIBaseWindow::OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    GtkWidget *widget = GetWND();
-    gtk_window_set_decorated(GTK_WINDOW(widget), FALSE);
-    return 0;
-}
-
-long UIBaseWindow::OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    return 0;
-}
-
-long UIBaseWindow::OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    return 0;
-}
-
-long UIBaseWindow::OnSize(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    return 0;
 }

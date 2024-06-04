@@ -24,6 +24,7 @@ typedef HFONT       HANDLE_FONT;
 
 #define UI_APP_QUIT()           ::PostQuitMessage(0)
 #define UI_DESTROY_WINDOW(wnd)  ::DestroyWindow(wnd)
+#define UI_CLOSE_WINDOW(wnd, ret) ::PostMessageW(wnd, WM_CLOSE, WPARAM(ret),0)
 
 #ifdef _MSC_VER
 #define strcasecmp _stricmp
@@ -126,6 +127,7 @@ inline const char* CharPrev(const char *start, const char *current)
 #define VK_RIGHT        GDK_KEY_Right
 #define VK_BACKSPACE    GDK_KEY_BackSpace
 #define VK_DELETE       GDK_KEY_Delete
+#define VK_F4           GDK_KEY_F4
 
 #define SB_LINEUP       GDK_SCROLL_UP
 #define SB_LINEDOWN     GDK_SCROLL_DOWN
@@ -162,6 +164,15 @@ inline const char* CharPrev(const char *start, const char *current)
 
 #define UI_APP_QUIT()       gtk_main_quit()
 #define UI_DESTROY_WINDOW(wnd)                          \
+   do{                                                  \
+        GdkEvent  *event = gdk_event_new(GDK_DELETE);   \
+        event->any.window = GDK_WINDOW(g_object_ref(G_OBJECT(gtk_widget_get_window(wnd)))); \
+        event->any.send_event = true;                   \
+        gtk_main_do_event(event);                       \
+        gdk_event_free(event);                          \
+   }while(0);
+
+#define UI_CLOSE_WINDOW(wnd, ret)                          \
    do{                                                  \
         GdkEvent  *event = gdk_event_new(GDK_DELETE);   \
         event->any.window = GDK_WINDOW(g_object_ref(G_OBJECT(gtk_widget_get_window(wnd)))); \

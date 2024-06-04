@@ -16,7 +16,7 @@ UIEdit::UIEdit()
     m_editBkColor{0xFFFFFFFF}
 {
     InitInternal();
-    SetTextPadding(RECT{4,3, 4, 3});
+    SetTextPadding(RECT{4,0, 4, 0});
     SetBkColor(0xFFFFFFFF);
 }
 
@@ -209,7 +209,7 @@ void UIEdit::PaintStatusImage(HANDLE_DC hDC) {
 void UIEdit::PaintText(HANDLE_DC hDC) {
     if( m_textColor == 0 ) m_textColor = m_manager->GetDefaultFontColor();
     if( m_disabledTextColor == 0 ) m_disabledTextColor = m_manager->GetDefaultDisabledColor();
-
+    this->DrawCaret();
     if( m_text.IsEmpty() ) return;
 
     //CDuiString sText = m_sText;
@@ -236,5 +236,4 @@ void UIEdit::PaintText(HANDLE_DC hDC) {
 				m_fontId, DT_SINGLELINE | m_textStyle);
 
     }
-    this->DrawCaret();
 }

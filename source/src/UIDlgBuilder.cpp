@@ -18,6 +18,7 @@
 #include <UIFileHelper.h>
 #include <UIEdit.h>
 #include <UIList.h>
+#include <UICombo.h>
 
 typedef UIControl* (*LPCREATECONTROL)(const char *pstrType);
 
@@ -299,7 +300,7 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
                     break;
                 case 5:
                     if( strcasecmp(pstrClass, DUI_CTR_COMBO) == 0 ){
-                        //pControl = new CComboUI;
+                        pControl = new UICombo;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_LABEL) == 0 ){
                         pControl = new UILabel;
@@ -334,7 +335,7 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
                         pControl = new UICheckbox;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_COMBOBOX) == 0 ){
-                        //pControl = new CComboUI;
+                        pControl = new UICombo;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_DATETIME) == 0 ){
                         //pControl = new CDateTimeUI;

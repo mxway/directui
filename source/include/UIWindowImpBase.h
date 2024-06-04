@@ -17,6 +17,12 @@ public:
         return UIString{"skin.xml"};
     }
 
+    virtual long OnKillFocus(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+    virtual long OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+    virtual long OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+    virtual long OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+    virtual long OnSize(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
+
 };
 
 #endif //DIRECTUI_UIWINDOWIMPBASE_H

@@ -283,7 +283,7 @@ UIControl *UIPaintManager::GetRoot() const {
 }
 
 UIControl *UIPaintManager::FindControl(POINT pt) const {
-    assert(m_pRoot);
+    //assert(m_pRoot);
     return m_pRoot->FindControl(__FindControlFromPoint, &pt, UIFIND_VISIBLE|UIFIND_HITTEST|UIFIND_TOP_FIRST);
 }
 
