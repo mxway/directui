@@ -118,6 +118,11 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
         }
         case DUI_WM_PAINT:
         {
+            static bool bInit = false;
+            if(!bInit){
+                bInit = true;
+                SendNotify(m_pRoot, DUI_MSGTYPE_WINDOWINIT, 0,0, false);
+            }
             if( m_pRoot == nullptr ) {
                 PAINTSTRUCT ps = { nullptr };
                 ::BeginPaint(m_paintWnd, &ps);
@@ -151,12 +156,6 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                         }
                     }
                 }
-            }
-
-            static bool bInit = false;
-            if(!bInit){
-                bInit = true;
-                SendNotify(m_pRoot, DUI_MSGTYPE_WINDOWINIT, 0,0, false);
             }
 
             HDC hDcOffscreen = ::CreateCompatibleDC(m_impl->m_hDcPaint);

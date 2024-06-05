@@ -440,12 +440,18 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
         // Attach to parent
         // 因为某些属性和父窗口相关，比如selected，必须先Add到父窗口
         if( pParent != nullptr ) {
-            if( pContainer == nullptr ) pContainer = static_cast<IContainerUI*>(pParent->GetInterface(UIString{DUI_CTR_ICONTAINER}));
-            assert(pContainer);
-            if( pContainer == nullptr ) return nullptr;
-            if( !pContainer->Add(pControl) ) {
-                pControl->Delete();
-                continue;
+            const char *coverValue = nullptr;
+            node->QueryAttribute("cover", &coverValue);
+            if(coverValue != nullptr && strcasecmp(coverValue, "true")==0){
+                pParent->SetCover(pControl);
+            }else{
+                if( pContainer == nullptr ) pContainer = static_cast<IContainerUI*>(pParent->GetInterface(UIString{DUI_CTR_ICONTAINER}));
+                assert(pContainer);
+                if( pContainer == nullptr ) return nullptr;
+                if( !pContainer->Add(pControl) ) {
+                    pControl->Delete();
+                    continue;
+                }
             }
 #if 0
         //TODO 实现cover以及TreeNodUI控件

@@ -1,6 +1,6 @@
 ﻿#include <UIResourceMgr.h>
 #include <UIFileHelper.h>
-#include "LoginFrameWnd.h"
+#include "GameFrameWnd.h"
 
 //对于windows系统下使用vs编译器，在debug版本下直接使用main函数运行带有控制台的界面程序。
 //对于release版本则直接使用WinMain运行时不带控制台信息。
@@ -19,10 +19,11 @@ int main(int argc, char** argv) {
                             UIFileHelper::UI_PATH_SEPARATOR +
                             u8"GameRes";
     UIResourceMgr::GetInstance().SetResourcePath(resourcePath);
-    LoginFrameWnd   mainFrame;
-    mainFrame.Create(nullptr,UIString{u8"计算机测试"},UI_WNDSTYLE_FRAME,0,0,0, 500,400);
-    mainFrame.CenterWindow();
-    mainFrame.ShowWindow();
+    auto *frame = new GameFrameWnd;
+    frame->Create(nullptr,UIString{u8"游戏中心"},UI_WNDSTYLE_FRAME,0,0,0, 500,400);
+    frame->CenterWindow();
+    frame->ShowWindow();
+    frame->Maximize();
     UIPaintManager::MessageLoop();
     return 0;
 }

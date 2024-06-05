@@ -604,7 +604,7 @@ static void GetTextExtentPoint(HANDLE_DC hDC, const char *text, int cchSize, UIF
     szText->cy = height;
 }
 
-static void TextOut(HANDLE_DC hDC, long x, long y, const char *text, int cchSize, UIFont *font)
+static void TextOut(HANDLE_DC hDC, uint32_t textColor, long x, long y, const char *text, int cchSize, UIFont *font)
 {
     PangoLayout *Layout;
     PangoFontDescription *FontDesc;
@@ -631,6 +631,9 @@ static void TextOut(HANDLE_DC hDC, long x, long y, const char *text, int cchSize
     }else{
         FontDesc = (PangoFontDescription *)UIResourceMgr::GetInstance().GetDefaultFont()->GetHandle();
     }
+
+    cairo_set_source_rgb(hDC, UIGetRValue(textColor)/255.0, UIGetGValue(textColor)/255.0,
+                         UIGetBValue(textColor)/255.0);
 
     pango_layout_set_font_description(Layout, FontDesc);
 
@@ -695,12 +698,10 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     UIFont *selectedFont = UIResourceMgr::GetInstance().GetFont(iDefaultFont);
     //HFONT hOldFont = (HFONT) ::SelectObject(hDC, UIResourceMgr::GetInstance().GetFont(iDefaultFont)->GetHandle());
     //::SetBkMode(hDC, TRANSPARENT);
-    cairo_set_source_rgb(hDC, UIGetRValue(dwTextColor)/255.0,
-                         UIGetGValue(dwTextColor)/255.0, UIGetBValue(dwTextColor)/255.0);
-    //::SetTextColor(hDC, RGB(GetBValue(dwTextColor), GetGValue(dwTextColor), GetRValue(dwTextColor)));
+    uint32_t textColor = dwTextColor;
+    //cairo_set_source_rgb(hDC, UIGetRValue(dwTextColor)/255.0,
+    //                     UIGetGValue(dwTextColor)/255.0, UIGetBValue(dwTextColor)/255.0);
     uint32_t dwBkColor = pManager->GetDefaultSelectedBkColor();
-
-    //::SetBkColor(hDC, RGB(GetBValue(dwBkColor), GetGValue(dwBkColor), GetRValue(dwBkColor)));
 
     // If the drawstyle include a alignment, we'll need to first determine the text-size so
     // we can draw it at the correct position...
@@ -843,9 +844,9 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     }
 
                     aColorArray.Add((LPVOID)(long)clrColor);
-                    cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0,
-                                         UIGetBValue(clrColor)/255.0);
-                    //::SetTextColor(hDC,  RGB(UIGetBValue(clrColor), UIGetGValue(clrColor), UIGetRValue(clrColor)));
+                    textColor = clrColor;
+                    //cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0,
+                    //                     UIGetBValue(clrColor)/255.0);
                     UIFont *pFontInfo = UIResourceMgr::GetInstance().GetFont(iDefaultFont);
                     if( aFontArray.GetSize() > 0 ) pFontInfo = (UIFont*)aFontArray.GetAt(aFontArray.GetSize() - 1);
                     if( !pFontInfo->GetUnderline() ) {
@@ -922,8 +923,8 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     if( *pstrText == '#') pstrText++;
                     uint32_t clrColor = strtol(pstrText, const_cast<char**>(&pstrText), 16);
                     aColorArray.Add((LPVOID)(long)clrColor);
-                    cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
-                    //::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
+                    textColor = clrColor;
+                    //cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
                 }
                     break;
                 case 'f':  // Font
@@ -1085,10 +1086,10 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                                 }
                                 if( *pStrImage++ != ' ' ) break;
                             }
-                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sImageName});
+                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sImageName},true);
                         }
                         else
-                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sName});
+                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sName},true);
 
                         if( pImageInfo ) {
                             iWidth = pImageInfo->nX;
@@ -1257,8 +1258,8 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     aColorArray.Remove(aColorArray.GetSize() - 1);
                     uint32_t clrColor = dwTextColor;
                     if( aColorArray.GetSize() > 0 ) clrColor = (int)(long)aColorArray.GetAt(aColorArray.GetSize() - 1);
-                    cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
-                    //::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
+                    textColor = clrColor;
+                    //cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
                 }
                     break;
                 case 'p':
@@ -1291,8 +1292,8 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     aColorArray.Remove(aColorArray.GetSize() - 1);
                     uint32_t clrColor = dwTextColor;
                     if( aColorArray.GetSize() > 0 ) clrColor = (int)(long)aColorArray.GetAt(aColorArray.GetSize() - 1);
-                    cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
-                    //::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
+                    textColor = clrColor;
+                    //cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
                     bInLink = false;
                 }
                 case 'b':
@@ -1329,11 +1330,11 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               &pstrText[1], 1,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(hDC,textColor, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
                 else
-                    ::TextOut(hDC, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
+                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
                               &pstrText[1], 1,selectedFont);
             }
             pt.x += szSpace.cx;
@@ -1349,11 +1350,11 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               &pstrText[1], 1,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
                 else
-                    ::TextOut(hDC, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
+                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
                               &pstrText[1], 1,selectedFont);
             }
             pt.x += szSpace.cx;
@@ -1371,10 +1372,10 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               " ", 1,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC, pt.x + cxOffset, pt.y, " ", 1,selectedFont);
-                else ::TextOut(hDC, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight, " ", 1,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y, " ", 1,selectedFont);
+                else ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight, " ", 1,selectedFont);
             }
             pt.x += szSpace.cx;
             cxMaxWidth = MAX((long)cxMaxWidth, pt.x);
@@ -1456,20 +1457,20 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               pstrText, cchSize,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC, pt.x + cxOffset, pt.y, pstrText, cchSize,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y, pstrText, cchSize,selectedFont);
                 else
-                    ::TextOut(hDC, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
+                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
                               pstrText, cchSize,selectedFont);
 
                 if( pt.x >= rc.right && (uStyle & DT_END_ELLIPSIS) != 0 ) {
-                    if (iVAlign == DT_VCENTER) ::TextOut(hDC, pt.x + cxOffset + szText.cx, pt.y + (cyLineHeight -
+                    if (iVAlign == DT_VCENTER) ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx, pt.y + (cyLineHeight -
                                                                                                    fontHeight) /
                                                                                                   2, "...", 3,selectedFont);
-                    else if (iVAlign == DT_TOP) ::TextOut(hDC, pt.x + cxOffset + szText.cx, pt.y, "...", 3,selectedFont);
+                    else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx, pt.y, "...", 3,selectedFont);
                     else
-                        ::TextOut(hDC, pt.x + cxOffset + szText.cx,
+                        ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx,
                                   pt.y + cyLineHeight - fontHeight, "...", 3,selectedFont);
                 }
             }
@@ -1499,8 +1500,8 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
 
                 uint32_t clrColor = dwTextColor;
                 if( aColorArray.GetSize() > 0 ) clrColor = (uint32_t)(long)aColorArray.GetAt(aColorArray.GetSize() - 1);
-                cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
-                //::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
+                textColor = clrColor;
+                //cairo_set_source_rgb(hDC, UIGetRValue(clrColor)/255.0, UIGetGValue(clrColor)/255.0, UIGetBValue(clrColor)/255.0);
                 auto* pFontInfo = (UIFont*)aFontArray.GetAt(aFontArray.GetSize() - 1);
                 if( pFontInfo == NULL ) pFontInfo = UIResourceMgr::GetInstance().GetFont(iDefaultFont);
                 //GetFontTextMetrics(hDC, pFontInfo->GetHandle(), &tm);

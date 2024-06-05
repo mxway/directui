@@ -33,6 +33,8 @@ public:
     virtual UIPaintManager *GetManager()const;
     virtual void        SetManager(UIPaintManager *manager, UIControl *parent, bool bInit=true);
     virtual UIControl   *GetParent()const;
+    virtual UIControl   *GetCover()const;
+    virtual void        SetCover(UIControl *pControl);
 
     virtual UIString    GetText()const;
     virtual void        SetText(const UIString &text);
@@ -190,7 +192,7 @@ public:
 protected:
     UIPaintManager  *m_manager;
     UIControl       *m_parent;
-    //UIControl     *m_cover;
+    UIControl       *m_cover;
     UIString        m_virtualWnd;
     UIString        m_name;
     bool            m_updateNeeded;

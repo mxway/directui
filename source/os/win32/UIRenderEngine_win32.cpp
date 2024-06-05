@@ -1182,10 +1182,10 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                                 }
                                 if( *pStrImage++ != ' ' ) break;
                             }
-                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sImageName});
+                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sImageName},true);
                         }
                         else
-                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sName});
+                            pImageInfo = UIResourceMgr::GetInstance().GetImage(UIString{sName},true);
 
                         if( pImageInfo ) {
                             iWidth = pImageInfo->nX;

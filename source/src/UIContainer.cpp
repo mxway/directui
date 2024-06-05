@@ -582,9 +582,9 @@ UIControl *UIContainer::FindControl(FindControlProc Proc, LPVOID pData, uint32_t
     if( (uFlags & UIFIND_ME_FIRST) != 0 ) {
         if( (uFlags & UIFIND_HITTEST) == 0 || IsMouseEnabled() ) pResult = Proc(this, pData);
     }
-    /*if( pResult == NULL && m_pCover != NULL ) {
-        if( (uFlags & UIFIND_HITTEST) == 0 || IsMouseChildEnabled() ) pResult = m_pCover->FindControl(Proc, pData, uFlags);
-    }*/
+    if( pResult == NULL && m_cover != NULL ) {
+        if( (uFlags & UIFIND_HITTEST) == 0 || IsMouseChildEnabled() ) pResult = m_cover->FindControl(Proc, pData, uFlags);
+    }
     if( pResult == NULL && m_pVerticalScrollBar != NULL ) {
         if( (uFlags & UIFIND_HITTEST) == 0 || IsMouseEnabled() ) pResult = m_pVerticalScrollBar->FindControl(Proc, pData, uFlags);
     }

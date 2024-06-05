@@ -112,10 +112,10 @@ UIBaseWindow::UIBaseWindow()
 
 static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uint32_t style, int x,int y,int nWidth,int nHeight,UIBaseWindow *window){
     GtkWidget *widget = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    if(parent!=nullptr){
+    //if(parent!=nullptr){
         //gtk_widget_get_window()
-        gtk_widget_set_parent_window(widget, gtk_widget_get_window(parent));
-    }
+        //gtk_widget_set_parent_window(widget, gtk_widget_get_window(parent));
+    //}
     window->SetWND(widget);
     gtk_widget_set_app_paintable(widget, TRUE);
     gtk_window_set_title(GTK_WINDOW(widget), className.GetData());

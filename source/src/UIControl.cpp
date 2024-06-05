@@ -8,6 +8,7 @@
 
 UIControl::UIControl()
     :m_manager{nullptr},
+    m_cover{nullptr},
     m_parent {nullptr},
     m_updateNeeded {true},
     m_menuUsed {false},
@@ -44,6 +45,10 @@ UIControl::UIControl()
 }
 
 UIControl::~UIControl() {
+    if(m_cover != nullptr){
+        m_cover->Delete();
+        m_cover = nullptr;
+    }
     RemoveAllCustomeAttribute();
     if(OnDestroy){
         OnDestroy(this);
@@ -107,6 +112,7 @@ UIPaintManager *UIControl::GetManager() const {
 }
 
 void UIControl::SetManager(UIPaintManager *manager, UIControl *parent, bool bInit) {
+    if( m_cover != nullptr ) m_cover->SetManager(manager, this, bInit);
     m_manager = manager;
     m_parent = parent;
     if(bInit && m_parent){
@@ -116,6 +122,21 @@ void UIControl::SetManager(UIPaintManager *manager, UIControl *parent, bool bIni
 
 UIControl *UIControl::GetParent() const {
     return m_parent;
+}
+
+UIControl *UIControl::GetCover() const {
+    return m_cover;
+}
+
+void UIControl::SetCover(UIControl *pControl) {
+    if( m_cover == pControl ) return;
+    if( m_cover != nullptr ) m_cover->Delete();
+    m_cover = pControl;
+    if( m_cover != nullptr ) {
+        m_manager->InitControls(m_cover, this);
+        if( IsVisible() ) NeedUpdate();
+        else pControl->SetInternVisible(false);
+    }
 }
 
 UIString UIControl::GetText() const {
@@ -308,7 +329,7 @@ void UIControl::SetPos(RECT rc, bool bNeedInvalidate) {
     else {
         m_rcItem = rc;
     }
-    if( m_manager == NULL ) return;
+    if( m_manager == nullptr ) return;
 
     if( !m_setPos ) {
         m_setPos = true;
@@ -331,6 +352,31 @@ void UIControl::SetPos(RECT rc, bool bNeedInvalidate) {
         }
         m_manager->Invalidate(invalidateRc);
     }
+
+    if( m_cover != nullptr && m_cover->IsVisible() ) {
+        if( m_cover->IsFloat() ) {
+            SIZE szXY = m_cover->GetFixedXY();
+            SIZE sz = {m_cover->GetFixedWidth(), m_cover->GetFixedHeight()};
+            TPercentInfo rcPercent = m_cover->GetFloatPercent();
+            long width = m_rcItem.right - m_rcItem.left;
+            long height = m_rcItem.bottom - m_rcItem.top;
+            RECT rcCtrl = { 0 };
+            rcCtrl.left = (long)(width*rcPercent.left) + szXY.cx;
+            rcCtrl.top = (long)(height*rcPercent.top) + szXY.cy;
+            rcCtrl.right = (long)(width*rcPercent.right) + szXY.cx + sz.cx;
+            rcCtrl.bottom = (long)(height*rcPercent.bottom) + szXY.cy + sz.cy;
+            m_cover->SetPos(rcCtrl, false);
+        }
+        else {
+            SIZE sz = { rc.right - rc.left, rc.bottom - rc.top };
+            if( sz.cx < m_cover->GetMinWidth() ) sz.cx = m_cover->GetMinWidth();
+            if( sz.cx > m_cover->GetMaxWidth() ) sz.cx = m_cover->GetMaxWidth();
+            if( sz.cy < m_cover->GetMinHeight() ) sz.cy = m_cover->GetMinHeight();
+            if( sz.cy > m_cover->GetMaxHeight() ) sz.cy = m_cover->GetMaxHeight();
+            RECT rcCtrl = { rc.left, rc.top, rc.left + sz.cx, rc.top + sz.cy };
+            m_cover->SetPos(rcCtrl, false);
+        }
+    }
 }
 
 void UIControl::Move(SIZE szOffset, bool bNeedInvalidate) {
@@ -340,7 +386,7 @@ void UIControl::Move(SIZE szOffset, bool bNeedInvalidate) {
     m_rcItem.right += szOffset.cx;
     m_rcItem.bottom += szOffset.cy;
 
-    if( bNeedInvalidate && m_manager == nullptr && IsVisible() ) {
+    if( bNeedInvalidate && m_manager != nullptr && IsVisible() ) {
         invalidateRc.Join(m_rcItem);
         UIControl* parent = this;
         RECT rcTemp;
@@ -354,8 +400,7 @@ void UIControl::Move(SIZE szOffset, bool bNeedInvalidate) {
         m_manager->Invalidate(invalidateRc);
     }
 
-    //TODO
-    //if( m_pCover != NULL && m_pCover->IsVisible() ) m_pCover->Move(szOffset, false);
+    if( m_cover != nullptr && m_cover->IsVisible() ) m_cover->Move(szOffset, false);
 }
 
 int UIControl::GetWidth() const {
@@ -535,18 +580,15 @@ void UIControl::SetVisible(bool bVisible) {
     if(IsVisible() != v){
         NeedParentUpdate();
     }
-    //TODO
-    //if( m_pCover != NULL ) m_pCover->SetInternVisible(IsVisible());
+    if( m_cover != nullptr ) m_cover->SetInternVisible(IsVisible());
 }
 
 void UIControl::SetInternVisible(bool bVisible) {
     m_internVisible = bVisible;
     if (!bVisible && m_manager && m_manager->GetFocus() == this) {
-        m_manager->SetFocus(NULL) ;
+        m_manager->SetFocus(nullptr) ;
     }
-
-    //TODO
-    //if( m_pCover != NULL ) m_pCover->SetInternVisible(IsVisible());
+    if( m_cover != nullptr ) m_cover->SetInternVisible(IsVisible());
 }
 
 bool UIControl::IsEnabled() const {
@@ -647,9 +689,9 @@ UIControl *UIControl::FindControl(FindControlProc Proc, LPVOID pData, uint32_t u
     if( (uFlags & UIFIND_ME_FIRST) != 0 ) {
         if( (uFlags & UIFIND_HITTEST) == 0 || IsMouseEnabled() ) pResult = Proc(this, pData);
     }
-//    if( pResult == NULL && m_pCover != NULL ) {
-//        /*if( (uFlags & UIFIND_HITTEST) == 0 || true)*/ pResult = m_pCover->FindControl(Proc, pData, uFlags);
-//    }
+    if( pResult == nullptr && m_cover != nullptr ) {
+        /*if( (uFlags & UIFIND_HITTEST) == 0 || true)*/ pResult = m_cover->FindControl(Proc, pData, uFlags);
+    }
     if( pResult == nullptr && (uFlags & UIFIND_ME_FIRST) == 0 ) {
         if( (uFlags & UIFIND_HITTEST) == 0 || IsMouseEnabled() ) pResult = Proc(this, pData);
     }
@@ -935,7 +977,7 @@ bool UIControl::Paint(HANDLE_DC hDC, const RECT &rcPaint, UIControl *pStopContro
         if( !OnPaint(this) ) return true;
     }
     if (!DoPaint(hDC, rcPaint, pStopControl)) return false;
-    //if( m_pCover != NULL ) return m_pCover->Paint(hDC, rcPaint);
+    if( m_cover != nullptr ) return m_cover->Paint(hDC, rcPaint);
     return true;
 }
 

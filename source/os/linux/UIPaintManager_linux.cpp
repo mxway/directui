@@ -251,7 +251,7 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 SendEvent.dwTimestamp = Event->time;
                 pControl->DoEvent(SendEvent);
             }
-            return false;
+            return true;
         }
         case DUI_WM_MOUSERELEASE:
         {
@@ -278,7 +278,7 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 m_pEventClick = nullptr;
                 pClick->Event(event);
             }
-            return false;
+            return true;
         }
         case DUI_WM_MOUSEMOVE:
         {
@@ -319,7 +319,7 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 SendEvent.pSender = pNewHover;
                 pNewHover->DoEvent(SendEvent);
             }
-            return false;
+            return true;
         }
         case DUI_WM_MOUSELEAVE:
         {
@@ -336,7 +336,7 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 m_pEventHover->DoEvent(SendEvent);
                 m_pEventHover = nullptr;
             }
-            return false;
+            return true;
         }
         case DUI_WM_MOUSEWHEEL:
         {
@@ -356,14 +356,14 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 }else if(Event->direction == GDK_SCROLL_UP){
                     SendEvent.wParam = (WPARAM)SB_LINEUP;
                 }else{
-                    return false;
+                    return true;
                 }
                 SendEvent.lParam = lParam;
                 SendEvent.wKeyState = MapKeyState(Event->state);
                 SendEvent.dwTimestamp = Event->time;
                 pControl->DoEvent(SendEvent);
             }
-            return false;
+            return true;
         }
         case DUI_WM_TIMER:
         {
