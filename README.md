@@ -113,15 +113,15 @@ make -j4
 
 ![360safe_win](https://github.com/mxway/directui/blob/main/images/win_360safe.png)
 ![list_win](https://github.com/mxway/directui/blob/main/images/win_list.png)
-![richlist_win)(https://github.com/mxway/directui/blob/main/images/win_richlist.png)
-![gamedemo_win)(https://github.com/mxway/directui/blob/main/images/win_gamedemo.png)
+![richlist_win](https://github.com/mxway/directui/blob/main/images/win_richlist.png)
+![gamedemo_win](https://github.com/mxway/directui/blob/main/images/win_gamedemo.png)
 
 * Ubuntu 20
 
 ![360safe_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_360safe.png)
 ![list_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_list.png)
 ![richlist_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_richlist.png)
-![gamedemo_ubuntu)(https://github.com/mxway/directui/blob/main/images/ubuntu_gamedemo.png)
+![gamedemo_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_gamedemo.png)
 
 * deepin
 
