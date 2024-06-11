@@ -250,21 +250,16 @@ void UIComboWnd::Init(UICombo *pOwner) {
         //::MapWindowRect(pOwner->GetManager()->GetPaintWindow(), HWND_DESKTOP, &rc);
     }
 
-    Create(nullptr, UIString{"ComboWnd"}, GTK_WINDOW_TOPLEVEL, 0, rc);
-    //gtk_widget_set_events(this->GetWND(), GDK_FOCUS_CHANGE_MASK|GDK_KEY_PRESS_MASK|GDK_BUTTON_MOTION_MASK|GDK_ENTER_NOTIFY_MASK);
-    //gtk_window_set_type_hint(GTK_WINDOW(this->GetWND()), GDK_WINDOW_TYPE_HINT_COMBO);
+    Create(pOwner->GetManager()->GetPaintWindow(), UIString{"ComboWnd"}, GTK_WINDOW_TOPLEVEL, 0, rc);
     gtk_window_set_skip_taskbar_hint(GTK_WINDOW(this->GetWND()), true);
     gtk_window_set_transient_for(GTK_WINDOW(this->GetWND()), GTK_WINDOW(pOwner->GetManager()->GetPaintWindow()));
 
     g_signal_connect(G_OBJECT(this->GetWND()), "focus-out-event",G_CALLBACK(wrap_focus_out_event),this);
-    //gtk_widget_add_events (this->GetWND(), GDK_FOCUS_CHANGE_MASK);
-    //gtk_widget_add_events (this->GetWND(), GDK_BUTTON_PRESS_MASK);
-    // HACK: Don't deselect the parent's caption
-    //HWND hWndParent = this->GetWND();
-    //while( ::GetParent(hWndParent) != nullptr ) hWndParent = ::GetParent(hWndParent);
-    //::ShowWindow(this->GetWND(), SW_SHOW);
-    gtk_widget_show(this->GetWND());
-    gtk_widget_grab_focus (this->GetWND());
+    if(gtk_window_get_modal(GTK_WINDOW(pOwner->GetManager()->GetPaintWindow()))) {
+        this->ShowModal();
+    }else {
+        this->ShowWindow();
+    }
 }
 #endif
 
@@ -277,7 +272,6 @@ void UIComboWnd::OnFinalMessage(HANDLE_WND wnd) {
 
 long UIComboWnd::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
     if( uMsg == DUI_WM_CREATE ) {
-        //m_pm.SetForceUseSharedRes(true);
 #ifdef __linux__
         gtk_window_set_decorated(GTK_WINDOW(this->GetWND()),false);
 #endif

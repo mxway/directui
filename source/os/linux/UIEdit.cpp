@@ -72,12 +72,10 @@ UIEditInternal::~UIEditInternal() {
 void UIEditInternal::DoEvent(TEventUI &event) {
     if(event.Type == UIEVENT_BUTTONDOWN || event.Type == UIEVENT_DBLCLICK || event.Type == UIEVENT_RBUTTONDOWN)
     {
-        //cout<<"DoEvent:"<<endl;
         m_text = m_uiEdit->GetText().GetData();
         this->CreateImmContext(event.ptMouse.x, event.ptMouse.y);
         this->CalculateCharactersWidth();
         this->CalculateCurrentEditPositionFromMousePoint(event.ptMouse);
-        //gtk_draw_insertion_cursor
     }
     if(event.Type == UIEVENT_KEYDOWN){
         if(m_imContext){

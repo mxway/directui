@@ -6,13 +6,17 @@ using namespace std;
 
 class UIBaseWindowPrivate {
 public:
-    UIBaseWindowPrivate(){
+    UIBaseWindowPrivate()
+            :widget{nullptr},
+             m_parentWidget{nullptr}
+    {
 
     }
     ~UIBaseWindowPrivate(){
 
     }
     GtkWidget  *widget;
+    GtkWidget  *m_parentWidget;
 };
 
 static gboolean wrap_draw(GtkWidget *widget, cairo_t *cr, UIBaseWindow *pWindow){
@@ -112,10 +116,6 @@ UIBaseWindow::UIBaseWindow()
 
 static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uint32_t style, int x,int y,int nWidth,int nHeight,UIBaseWindow *window){
     GtkWidget *widget = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    //if(parent!=nullptr){
-        //gtk_widget_get_window()
-        //gtk_widget_set_parent_window(widget, gtk_widget_get_window(parent));
-    //}
     window->SetWND(widget);
     gtk_widget_set_app_paintable(widget, TRUE);
     gtk_window_set_title(GTK_WINDOW(widget), className.GetData());
@@ -150,25 +150,24 @@ static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uin
     g_signal_connect(G_OBJECT(widget), "key-press-event", G_CALLBACK(wrap_key_press), window);
     g_signal_connect(G_OBJECT(widget), "key-release-event", G_CALLBACK(wrap_key_release), window);
     g_signal_connect(G_OBJECT(widget), "delete-event", G_CALLBACK(wrap_delete_event), window);
-    //g_signal_connect(G_OBJECT(widget), "focus-out-event", G_CALLBACK(wrap_focus_out_event),window);
     g_signal_connect(G_OBJECT(widget), "destroy", G_CALLBACK(wrap_destroy), window);
     g_signal_connect(G_OBJECT(widget), "draw", G_CALLBACK(wrap_draw), window);
     g_signal_connect(G_OBJECT(widget), "screen-changed", G_CALLBACK(wrap_screen_change),window);
     window->HandleMessage(DUI_WM_CREATE, (WPARAM)widget, (LPARAM)nullptr);
-    //if(style == GTK_WINDOW_TOPLEVEL){
     wrap_screen_change(widget, nullptr, nullptr);
-    //}
     return widget;
 }
 
 HANDLE_WND
 UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc) {
+    m_data->m_parentWidget = parent;
     return CreateWindow(parent, className, style,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top, this);
 }
 
 HANDLE_WND
 UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y,
                      int cx, int cy) {
+    m_data->m_parentWidget = parent;
     return CreateWindow(parent, className, style, x, y, cx, cy ,this);
 }
 
@@ -178,6 +177,73 @@ void UIBaseWindow::ShowWindow(bool bShow) {
     }else{
         gtk_widget_hide(this->GetWND());
     }
+}
+
+typedef struct{
+    GtkWidget   *widget;
+    gint        responnse_id;
+    GMainLoop   *loop;
+    gboolean    destroyed;
+}RunInfo;
+
+static void shutdown_loop(RunInfo *ri){
+    if(g_main_loop_is_running(ri->loop)){
+        g_main_loop_quit(ri->loop);
+    }
+}
+
+static void run_unmap_handler(GtkWidget *widget, gpointer data){
+    auto *ri = static_cast<RunInfo*>(data);
+    shutdown_loop(ri);
+}
+
+static void run_response_handler(GtkWidget *widget, gint response_id, gpointer data){
+    auto *ri = static_cast<RunInfo*>(data);
+    ri->responnse_id = response_id;
+    shutdown_loop(ri);
+}
+
+static gint run_delete_handler(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
+    g_print("Delete Handler...\n");
+    auto *ri = static_cast<RunInfo*>(data);
+    ri->responnse_id = event->configure.send_event;
+    shutdown_loop(ri);
+    return false;
+}
+
+static void run_destroy_handler(GtkWidget *widget, gpointer data)
+{
+    g_print("Destroy Handler...\n");
+    auto *ri  = static_cast<RunInfo*>(data);
+    ri->destroyed = true;
+}
+
+
+uint32_t UIBaseWindow::ShowModal() {
+    RunInfo  ri = {nullptr, 0, nullptr, false};
+    gulong  response_handler = 0;
+    gulong  unmap_handler = 0;
+    gulong  destroy_handler = 0;
+    gulong  delete_handler = 0;
+    gtk_window_set_modal(GTK_WINDOW(this->GetWND()), true);
+    gtk_widget_show(this->GetWND());
+    gtk_window_set_skip_taskbar_hint(GTK_WINDOW(this->GetWND()), true);
+    gtk_window_set_skip_pager_hint(GTK_WINDOW(this->GetWND()),false);
+    gtk_window_set_transient_for(GTK_WINDOW(this->GetWND()),GTK_WINDOW(m_data->m_parentWidget));
+    unmap_handler = g_signal_connect(G_OBJECT(this->GetWND()), "unmap",G_CALLBACK(run_unmap_handler), &ri);
+    delete_handler = g_signal_connect(G_OBJECT(this->GetWND()), "delete-event", G_CALLBACK(run_delete_handler), &ri);
+    destroy_handler = g_signal_connect(G_OBJECT(this->GetWND()),"destroy", G_CALLBACK(run_destroy_handler),&ri);
+    ri.loop = g_main_loop_new(nullptr, false);
+    g_main_loop_run(ri.loop);
+    g_main_loop_unref(ri.loop);
+    ri.loop = nullptr;
+    if(!ri.destroyed){
+        g_signal_handler_disconnect(G_OBJECT(this->GetWND()), unmap_handler);
+        g_signal_handler_disconnect(G_OBJECT(this->GetWND()), delete_handler);
+        g_signal_handler_disconnect(G_OBJECT(this->GetWND()), destroy_handler);
+    }
+    return ri.responnse_id;
 }
 
 void UIBaseWindow::Maximize() {

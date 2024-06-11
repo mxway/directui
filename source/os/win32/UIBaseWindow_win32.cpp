@@ -36,7 +36,7 @@ UIBaseWindowPrivate::Create(HANDLE_WND parent, const UIString &className, uint32
     }
     m_hWnd = ::CreateWindowExW(exStyle, wideClassName,
                                wideClassName, style, x, y, nWidth, nHeight,
-                               nullptr,
+                               parent,
                                nullptr,
                                GetModuleHandleW(nullptr), param);
     delete []wideClassName;
@@ -105,6 +105,31 @@ UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t styl
 void UIBaseWindow::ShowWindow(bool bShow) {
     if( !::IsWindow(this->GetWND()) ) return;
     ::ShowWindow(this->GetWND(), bShow ? SW_SHOWNORMAL : SW_HIDE);
+}
+
+uint32_t UIBaseWindow::ShowModal() {
+    assert(::IsWindow(this->GetWND()));
+    UINT nRet = 0;
+    HWND hWndParent = GetWindowOwner(this->GetWND());
+    ::ShowWindow(this->GetWND(), SW_SHOWNORMAL);
+    ::EnableWindow(hWndParent, FALSE);
+    MSG msg = { 0 };
+    while( ::IsWindow(this->GetWND()) && ::GetMessageW(&msg, nullptr, 0, 0) ) {
+        if( msg.message == WM_CLOSE && msg.hwnd == this->GetWND() ) {
+            nRet = msg.wParam;
+            ::EnableWindow(hWndParent, TRUE);
+            ::SetFocus(hWndParent);
+        }
+        //if( !CPaintManagerUI::TranslateMessage(&msg) ) {
+        ::TranslateMessage(&msg);
+        ::DispatchMessageW(&msg);
+        //}
+        if( msg.message == WM_QUIT ) break;
+    }
+    ::EnableWindow(hWndParent, TRUE);
+    ::SetFocus(hWndParent);
+    if( msg.message == WM_QUIT ) ::PostQuitMessage(msg.wParam);
+    return nRet;
 }
 
 void UIBaseWindow::Maximize() {

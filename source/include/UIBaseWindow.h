@@ -63,6 +63,7 @@ public:
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc);
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y, int cx,int cy);
     void ShowWindow(bool bShow = true);
+    uint32_t ShowModal();
     HANDLE_WND GetWND();
     void       SetWND(HANDLE_WND wndHandle);
     void       Close(){

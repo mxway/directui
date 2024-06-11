@@ -54,15 +54,6 @@ void GameFrameWnd::OnPrepare() {
     }
     //gameList->NeedUpdate();
     //pUserList->NeedUpdate();
-
-    LoginFrameWnd* pLoginFrame = new LoginFrameWnd();
-    if( pLoginFrame == NULL ) { Close(); return; }
-    //pLoginFrame->Create(this->GetWND(), u8"LoginFrame", UI_WNDSTYLE_DIALOG, 0, 0, 0, 0, 0);
-    pLoginFrame->Create(this->GetWND(),UIString{u8"LoginFrame"},UI_WNDSTYLE_DIALOG,0,0,0,600,400);
-    //pLoginFrame->SetIcon(IDI_ICON_DUILIB);
-    pLoginFrame->CenterWindow();
-    pLoginFrame->ShowWindow();
-    //pLoginFrame->ShowModal();
 }
 
 void GameFrameWnd::Notify(TNotifyUI &msg) {
@@ -98,19 +89,14 @@ void GameFrameWnd::Notify(TNotifyUI &msg) {
             if( pControl ) pControl->SetVisible(false);
         }
         else if( name == "fontswitch" ) {
-            UIFont *defaultFont = UIResourceMgr::GetInstance().GetDefaultFont();
-            //TFontInfo* pFontInfo = m_pm.GetDefaultFontInfo();
-            /*if( pFontInfo->iSize < 18 ) {
-                TFontInfo* pFontInfo = m_pm.GetFontInfo(0);
-                if( pFontInfo )m_pm.SetDefaultFont(pFontInfo->sFontName, pFontInfo->iSize, pFontInfo->bBold,
-                                                   pFontInfo->bUnderline, pFontInfo->bItalic);
-            }
-            else {
-                TFontInfo* pFontInfo = m_pm.GetFontInfo(1);
-                if( pFontInfo )m_pm.SetDefaultFont(pFontInfo->sFontName, pFontInfo->iSize, pFontInfo->bBold,
-                                                   pFontInfo->bUnderline, pFontInfo->bItalic);
-            }*/
-            m_pm.GetRoot()->NeedUpdate();
+            LoginFrameWnd* pLoginFrame = new LoginFrameWnd();
+            if( pLoginFrame == NULL ) { Close(); return; }
+            //pLoginFrame->Create(this->GetWND(), u8"LoginFrame", UI_WNDSTYLE_DIALOG, 0, 0, 0, 0, 0);
+            pLoginFrame->Create(this->GetWND(),UIString{u8"LoginFrame"},UI_WNDSTYLE_DIALOG,0,0,0,600,400);
+            //pLoginFrame->SetIcon(IDI_ICON_DUILIB);
+            pLoginFrame->CenterWindow();
+            //pLoginFrame->ShowWindow();
+            pLoginFrame->ShowModal();
         }
         else if( name == "leaveBtn"  || name == "roomclosebtn" ) {
             auto* pControl = dynamic_cast<UIOption*>(m_pm.FindControl("hallswitch"));
