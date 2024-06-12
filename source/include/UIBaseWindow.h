@@ -80,11 +80,6 @@ public:
     virtual long HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam);
     virtual void OnFinalMessage(HANDLE_WND hWnd);
 
-//    virtual long OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-//    virtual long OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-//    virtual long OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-//    virtual long OnSize(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-
 protected:
     UIPaintManager  m_pm;
 private:

@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 #include <cmath>
+#include <string>
 #include "UIList.h"
 #include "UIDlgBuilder.h"
 #include "UITileLayout.h"

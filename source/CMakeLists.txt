@@ -39,6 +39,8 @@ else()
     endif()
 endif()
 
+add_subdirectory(third-party/zlib-1.3.1)
+
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
     # msvc不支持动态库生成，目前仅支持静态库的生成
     add_library(DuiLib ${OS_SRC_FILES} ${SRC_FILES})

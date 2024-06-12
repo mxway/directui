@@ -165,7 +165,7 @@ void UIComboWnd::Init(UICombo *pOwner) {
         cyFixed += sz.cy;
     }
     cyFixed += 4; // CVerticalLayoutUI 默认的Inset 调整
-    rc.bottom = rc.top + std::min((LONG)cyFixed, szDrop.cy);
+    rc.bottom = rc.top + min((LONG)cyFixed, szDrop.cy);
 
     ::MapWindowRect(pOwner->GetManager()->GetPaintWindow(), HWND_DESKTOP, &rc);
 
