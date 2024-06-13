@@ -30,9 +30,13 @@ public:
     bool            AddImage(const UIString &image);
     TImageInfo      *GetImage(const UIString &image, bool bAdd=false);
     void            RemoveImage(const UIString &image);
+	void			ReleaseAllImages();
 
 private:
     UIResourceMgr();
+    static void            FreeImageInfo(TImageInfo *imageInfo);
+    static void     ReleaseDefaultFont();
+    void            ReleaseArgs();
 private:
     UIStringPtrMap      m_strImageMap;
     UIString            m_strResDir;
@@ -43,7 +47,7 @@ public:
     UIFont  *GetFont(int fontId);
     bool    AddFont(int fontId, const UIString &faceName,bool defaultFont=false,
                      int size=0,bool bold=false, bool underLine =false, bool italic=false);
-    void    ReleaseAllFont();
+    void    ReleaseAllFonts();
     UIFont  *GetDefaultFont();
     uint32_t GetFontHeight(int fontId, HANDLE_DC hdc);
     uint32_t GetDefaultFontHeight(HANDLE_DC hdc);

@@ -1,5 +1,13 @@
 ﻿#include <UIResourceMgr.h>
 
+UIResourceMgr::~UIResourceMgr()
+{
+    ReleaseAllFonts();
+    ReleaseAllImages();
+    ReleaseArgs();
+    ReleaseDefaultFont();
+}
+
 bool
 UIResourceMgr::AddFont(int fontId, const UIString &faceName, bool defaultFont, int size, bool bold, bool underLine,
                        bool italic) {
@@ -24,7 +32,7 @@ UIFont *UIResourceMgr::GetFont(int fontId) {
     return font;
 }
 
-void UIResourceMgr::ReleaseAllFont() {
+void UIResourceMgr::ReleaseAllFonts() {
     for (int i = 0; i < m_fontMapping.GetSize(); i++) {
         UIString key = m_fontMapping.GetAt(i);
         auto *uiFont = static_cast<UIFont *>(m_fontMapping.Find(key));
@@ -58,4 +66,21 @@ UIFont *UIResourceMgr::GetFont(const UIString &fontName, int size, bool bold, bo
         }
     }
     return nullptr;
+}
+
+void UIResourceMgr::ReleaseArgs() {
+    for(int i=0;i<m_args.GetSize();i++){
+        auto *str = static_cast<UIString*>(m_args.GetAt(i));
+        delete str;
+    }
+    m_args.Empty();
+}
+
+void UIResourceMgr::ReleaseAllImages() {
+    for(int i=0;i<m_strImageMap.GetSize();i++){
+        UIString key = m_strImageMap.GetAt(i);
+        auto *image = static_cast<TImageInfo*>(m_strImageMap.Find(key));
+        FreeImageInfo(image);
+    }
+    m_strImageMap.RemoveAll();
 }

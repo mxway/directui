@@ -28,12 +28,6 @@ UIResourceMgr::UIResourceMgr()
     m_currentDir = m_strResDir;
 }
 
-UIResourceMgr::~UIResourceMgr()
-{
-    ReleaseAllFont();
-    delete glbSystemDefaultFont;
-}
-
 UIResourceMgr &UIResourceMgr::GetInstance() {
     static UIResourceMgr    uiResourceMgr;
     return uiResourceMgr;
@@ -158,8 +152,7 @@ TImageInfo   *UIResourceMgr::GetImage(const UIString &image, bool bAdd) {
     return data;
 }
 
-static void FreeImageInfo(TImageInfo *imageInfo)
-{
+void UIResourceMgr::FreeImageInfo(TImageInfo *imageInfo) {
     if(imageInfo == nullptr){
         return;
     }
@@ -181,6 +174,10 @@ void UIResourceMgr::RemoveImage(const UIString &image) {
         FreeImageInfo(data) ;
         m_strImageMap.Remove(image);
     }
+}
+
+void UIResourceMgr::ReleaseDefaultFont() {
+    delete glbSystemDefaultFont;
 }
 
 UIFont *UIResourceMgr::GetDefaultFont() {

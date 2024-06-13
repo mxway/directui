@@ -67,6 +67,8 @@ class UIPaintManager
 public:
     UIPaintManager();
 
+	~UIPaintManager();
+
     void Init(HANDLE_WND hWnd, const UIString &name=UIString{""});
 
     static void    MessageLoop();
@@ -155,6 +157,8 @@ public:
     void AddDefaultAttributeList(const char *pStrControlName, const char *pStrControlAttrList, bool shared=false);
 
     const char* GetDefaultAttributeList(const char *pStrControlName) const;
+
+    void        RemoveAllDefaultAttributeList();
 
     bool        AddOptionGroup(const UIString &groupName, UIControl *control);
     UIPtrArray  *GetOptionGroup(const UIString &groupName);

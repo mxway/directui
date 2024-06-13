@@ -93,9 +93,6 @@ void UIPaintManager::MessageLoop() {
 }
 
 void UIPaintManager::Invalidate(RECT &rcItem) {
-    /*if (!glbWindowShowed){
-        return;
-    }*/
     if(!GDK_IS_WINDOW(gtk_widget_get_window(m_paintWnd))){
         return;
     }

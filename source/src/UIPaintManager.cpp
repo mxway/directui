@@ -3,6 +3,9 @@
 #include <cassert>
 #include <UIRect.h>
 #include <cstring>
+#include <iostream>
+
+using namespace std;
 
 bool  UIPaintManager::m_useHSL = false;
 short UIPaintManager::m_H = 180;
@@ -39,6 +42,20 @@ void tagTDrawInfo::Clear()
     sImageName.Empty();
     memset(&bLoaded, 0, sizeof(tagTDrawInfo) - offsetof(tagTDrawInfo, bLoaded));
     uFade = 255;
+}
+
+UIPaintManager::~UIPaintManager(){
+    for(int i=0;i<m_aDelayedCleanup.GetSize();i++){
+        static_cast<UIControl*>(m_aDelayedCleanup[i])->Delete();
+    }
+    m_aDelayedCleanup.Empty();
+    m_mNameHash.Resize(0);
+	if(m_pRoot != nullptr){
+		m_pRoot->Delete();
+	}
+    this->RemoveAllDefaultAttributeList();
+    this->RemoveAllOptionGroups();
+    this->RemoveAllTimers();
 }
 
 void UIPaintManager::ReapObjects(UIControl *control) {
@@ -541,6 +558,7 @@ void UIPaintManager::AddDefaultAttributeList(const char *pStrControlName, const 
     UIString *oldDefaultAttr = static_cast<UIString*>(
             m_defaultAttributesMapping.Set(UIString{pStrControlName},
                                            pDefaultAttribute));
+    delete oldDefaultAttr;
 }
 
 const char *UIPaintManager::GetDefaultAttributeList(const char *pStrControlName) const {
@@ -549,6 +567,15 @@ const char *UIPaintManager::GetDefaultAttributeList(const char *pStrControlName)
         return "";
     }
     return attribute->GetData();
+}
+
+void UIPaintManager::RemoveAllDefaultAttributeList() {
+    for(int i=0;i<m_defaultAttributesMapping.GetSize();i++){
+        UIString key = m_defaultAttributesMapping.GetAt(i);
+        auto *attribute = static_cast<UIString*>(m_defaultAttributesMapping.Find(key));
+        delete attribute;
+    }
+    m_defaultAttributesMapping.RemoveAll();
 }
 
 POINT UIPaintManager::GetMousePos() const {
