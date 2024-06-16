@@ -19,6 +19,7 @@
 #include <UIEdit.h>
 #include <UIList.h>
 #include <UICombo.h>
+#include "SkinFileReaderService.h"
 
 typedef UIControl* (*LPCREATECONTROL)(const char *pstrType);
 
@@ -32,13 +33,9 @@ UIDlgBuilder::UIDlgBuilder()
 UIControl *UIDlgBuilder::Create(const UIString &xml, UIDlgBuilder::SkinType type, IDialogBuilderCallback *dlgCallback,
                                 UIPaintManager *manager, UIControl *parent) {
     if(type == SkinType_XmlFile){
-        UIString xmlFile = xml;
-        if(!UIFileHelper::IsAbsolutePath(xml)){
-            xmlFile = UIResourceMgr::GetInstance().GetResourcePath() +
-                        UIFileHelper::UI_PATH_SEPARATOR +
-                        xml;
-        }
-        m_xml.LoadFile(xmlFile.GetData());
+        ByteArray  xmlString = SkinFileReaderFactory::GetSkinFileReader()->ReadFile(xml);
+        m_xml.Parse((const char*)xmlString.m_buffer, xmlString.m_bufferSize);
+        delete []xmlString.m_buffer;
     }else{
         m_xml.Parse(xml.GetData());
     }

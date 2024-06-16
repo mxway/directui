@@ -1,6 +1,7 @@
 ﻿#include <UIResourceMgr.h>
 #include <unistd.h>
 #include <libgen.h>
+#include "../../src/SkinFileReaderService.h"
 
 UIFont *glbSystemDefaultGUIFont=nullptr;
 
@@ -20,7 +21,8 @@ static void CreateSystemDefaultGUIFont()
 }
 
 UIResourceMgr::UIResourceMgr()
-    :m_defaultFont {nullptr}
+    :m_defaultFont {nullptr},
+     m_skinType{ResourceSkinType_Unknown}
 {
     CreateSystemDefaultGUIFont();
     char exeFileName[4096] = {0};
@@ -48,12 +50,21 @@ void UIResourceMgr::Init(int argc, char **argv) {
 
 bool UIResourceMgr::AddImage(const UIString &image) {
 
-    UIString    strPath = m_strResDir + "/" + image;
-    GdkPixbuf *pixBuf = gdk_pixbuf_new_from_file(strPath.GetData(),nullptr);
-    if(pixBuf==nullptr)
-    {
+    //UIString    strPath = m_strResDir + "/" + image;
+    ByteArray resultData = SkinFileReaderFactory::GetSkinFileReader()->ReadFile(image);
+    if(resultData.m_bufferSize == 0){
         return false;
     }
+    GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
+    gdk_pixbuf_loader_write(loader, resultData.m_buffer,resultData.m_bufferSize,nullptr);
+    gdk_pixbuf_loader_close(loader, nullptr);
+    GdkPixbuf *pixBuf = gdk_pixbuf_copy(gdk_pixbuf_loader_get_pixbuf(loader));
+    delete []resultData.m_buffer;
+    g_object_unref(loader);
+    if(pixBuf == nullptr){
+        return false;
+    }
+
     auto  *imageInfo = new TImageInfo ;
     imageInfo->hBitmap = pixBuf;
     imageInfo->bAlpha = true;

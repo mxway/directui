@@ -2,6 +2,7 @@
 #include "stb_image.h"
 #include <shlwapi.h>
 #include "EncodingTransform.h"
+#include "../src/SkinFileReaderService.h"
 
 static UIFont   *glbSystemDefaultFont;
 
@@ -17,7 +18,8 @@ static UIString GetCurrentModulePath()
 }
 
 UIResourceMgr::UIResourceMgr()
-    :m_defaultFont {nullptr}
+    :m_defaultFont {nullptr},
+    m_skinType{ResourceSkinType_Unknown}
 {
     LOGFONTW lf = {0};
     ::GetObjectW(::GetStockObject(DEFAULT_GUI_FONT), sizeof(LOGFONTW),&lf);
@@ -47,32 +49,10 @@ void UIResourceMgr::Init(int argc, char **argv) {
 
 static TImageInfo*      LoadImageToMemory(const UIString &image)
 {
-    UIString imageFile = UIResourceMgr::GetInstance().GetResourcePath() + "/"+image;
-    //sFile += bitmap.m_lpstr;
-    wchar_t *wideImageFile = Utf8ToUcs2(imageFile.GetData(),-1);
-    HANDLE hFile = ::CreateFileW(wideImageFile, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, \
-					FILE_ATTRIBUTE_NORMAL, nullptr);
-    delete []wideImageFile;
-    if( hFile == INVALID_HANDLE_VALUE ) return nullptr;
-    DWORD dwSize = ::GetFileSize(hFile, nullptr);
-    if (dwSize == 0)
-    {
-        ::CloseHandle(hFile);
-        return nullptr;
-    }
-
-    DWORD dwRead = 0;
-    auto pData = new BYTE[ dwSize ];
-    ::ReadFile( hFile, pData, dwSize, &dwRead, nullptr );
-    ::CloseHandle( hFile );
-
-    if( dwRead != dwSize ) {
-        delete[] pData;
-        return nullptr;
-    }
+    ByteArray resultData = SkinFileReaderFactory::GetSkinFileReader()->ReadFile(image);
     int x = 1, y = 1, n;
-    LPBYTE pImage = stbi_load_from_memory(pData, dwSize, &x, &y, &n, 4);
-    delete[] pData;
+    LPBYTE pImage = stbi_load_from_memory(resultData.m_buffer, (int)resultData.m_bufferSize, &x, &y, &n, 4);
+    delete[] resultData.m_buffer;
     if(pImage == nullptr){
         return nullptr;
     }

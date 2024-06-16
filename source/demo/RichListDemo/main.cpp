@@ -15,10 +15,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 int main(int argc, char** argv) {
 #endif
     UIResourceMgr::GetInstance().Init(argc, argv);
-    UIString resourcePath = UIResourceMgr::GetInstance().GetCurrentPath() +
+    UIString resourceZipFileName = UIResourceMgr::GetInstance().GetCurrentPath() +
                             UIFileHelper::UI_PATH_SEPARATOR +
-                            u8"RichListRes";
-    UIResourceMgr::GetInstance().SetResourcePath(resourcePath);
+                            u8"RichListRes.zip";
+    UIResourceMgr::GetInstance().SetResourceZip(resourceZipFileName);
     RichListWnd   mainFrame;
     mainFrame.Create(nullptr,UIString{u8"计算机测试1"},UI_WNDSTYLE_FRAME,0,0,0, 500,400);
     mainFrame.CenterWindow();

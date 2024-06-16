@@ -134,7 +134,7 @@ public:
     void            EnsureVisible(int iIndex);
     void            Scroll(int dx, int dy);
 public:
-    UIPaintManager      m_pm;
+    //UIPaintManager      m_pm;
     UICombo             *m_pOwner;
     UIVerticalLayout    *m_pLayout;
     int                 m_oldSel;

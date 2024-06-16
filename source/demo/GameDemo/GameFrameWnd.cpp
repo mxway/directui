@@ -97,6 +97,8 @@ void GameFrameWnd::Notify(TNotifyUI &msg) {
             pLoginFrame->CenterWindow();
             //pLoginFrame->ShowWindow();
             pLoginFrame->ShowModal();
+
+            delete pLoginFrame;
         }
         else if( name == "leaveBtn"  || name == "roomclosebtn" ) {
             auto* pControl = dynamic_cast<UIOption*>(m_pm.FindControl("hallswitch"));

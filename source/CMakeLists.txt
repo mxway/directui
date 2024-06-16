@@ -39,14 +39,19 @@ else()
     endif()
 endif()
 
+include_directories(third-party/zlib-1.3.1)
+include_directories(third-party/zlib-1.3.1/minizip)
 add_subdirectory(third-party/zlib-1.3.1)
 
 if(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
     # msvc不支持动态库生成，目前仅支持静态库的生成
     add_library(DuiLib ${OS_SRC_FILES} ${SRC_FILES})
 else()
-    add_library(DuiLib SHARED ${OS_SRC_FILES} ${SRC_FILES})
+    add_library(DuiLib SHARED ${OS_SRC_FILES} ${SRC_FILES}
+            os/linux/SkinFileReader_linux.cpp)
 endif()
+
+target_link_libraries(DuiLib PRIVATE zlibstatic)
 
 include_directories(include)
 add_subdirectory(demo)

@@ -8,6 +8,13 @@
 class UIResourceMgr
 {
 public:
+    enum ResourceSkinType{
+        ResourceSkinType_File,
+        ResourceSkinType_ZipFile,
+        ResourceSkinType_ZipBuffer,
+        ResourceSkinType_Unknown
+    };
+public:
     ~UIResourceMgr();
     UIResourceMgr(const UIResourceMgr &)=delete;
     UIResourceMgr &operator=(const UIResourceMgr &)=delete;
@@ -17,6 +24,7 @@ public:
     static UIResourceMgr& GetInstance();
     void        Init(int argc, char **argv);
     void        SetResourcePath(const UIString &path){
+        m_skinType = ResourceSkinType_File;
         m_strResDir = path;
     }
     UIString    GetResourcePath()const{
@@ -32,6 +40,19 @@ public:
     void            RemoveImage(const UIString &image);
 	void			ReleaseAllImages();
 
+    void            SetResourceZip(const UIString &zipFile){
+        m_zipFile = zipFile;
+        m_skinType = ResourceSkinType_ZipFile;
+    }
+
+    UIString        GetResourceZip()const{
+        return m_zipFile;
+    }
+
+    ResourceSkinType GetResourceSkinType(){
+        return m_skinType;
+    }
+
 private:
     UIResourceMgr();
     static void            FreeImageInfo(TImageInfo *imageInfo);
@@ -41,6 +62,8 @@ private:
     UIStringPtrMap      m_strImageMap;
     UIString            m_strResDir;
     UIString            m_currentDir;
+    ResourceSkinType    m_skinType;
+    UIString            m_zipFile;
 
 public:
     UIFont  *GetFont(const UIString &fontName,int size, bool bold, bool underLine, bool italic);
