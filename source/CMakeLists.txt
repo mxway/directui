@@ -47,8 +47,7 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
     # msvc不支持动态库生成，目前仅支持静态库的生成
     add_library(DuiLib ${OS_SRC_FILES} ${SRC_FILES})
 else()
-    add_library(DuiLib SHARED ${OS_SRC_FILES} ${SRC_FILES}
-            os/linux/SkinFileReader_linux.cpp)
+    add_library(DuiLib SHARED ${OS_SRC_FILES} ${SRC_FILES})
 endif()
 
 target_link_libraries(DuiLib PRIVATE zlibstatic)
