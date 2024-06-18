@@ -220,7 +220,7 @@ static void run_destroy_handler(GtkWidget *widget, gpointer data)
 }
 
 
-uint32_t UIBaseWindow::ShowModal() {
+DuiResponseVal UIBaseWindow::ShowModal() {
     RunInfo  ri = {nullptr, 0, nullptr, false};
     gulong  response_handler = 0;
     gulong  unmap_handler = 0;
@@ -243,7 +243,7 @@ uint32_t UIBaseWindow::ShowModal() {
         g_signal_handler_disconnect(G_OBJECT(this->GetWND()), delete_handler);
         g_signal_handler_disconnect(G_OBJECT(this->GetWND()), destroy_handler);
     }
-    return ri.responnse_id;
+    return (DuiResponseVal)(ri.responnse_id);
 }
 
 void UIBaseWindow::Maximize() {

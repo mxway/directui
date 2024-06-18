@@ -177,6 +177,7 @@ inline const char* CharPrev(const char *start, const char *current)
         GdkEvent  *event = gdk_event_new(GDK_DELETE);   \
         event->any.window = GDK_WINDOW(g_object_ref(G_OBJECT(gtk_widget_get_window(wnd)))); \
         event->any.send_event = true;                   \
+        event->configure.send_event = ret;               \
         gtk_main_do_event(event);                       \
         gdk_event_free(event);                          \
    }while(0);

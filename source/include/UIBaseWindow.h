@@ -56,6 +56,17 @@ using namespace std;
 
 class UIBaseWindowPrivate;
 
+enum DuiResponseVal
+{
+    DUI_RESPONSE_CLOSE,
+    DUI_RESPONSE_OK,
+    DUI_RESPONSE_CANCEL,
+    DUI_RESPONSE_YES,
+    DUI_RESPONSE_NO,
+    DUI_RESPONSE_DENY,
+    DUI_RESPONSE_RETRY,
+};
+
 class UIBaseWindow {
 public:
     UIBaseWindow();
@@ -63,11 +74,11 @@ public:
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc);
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y, int cx,int cy);
     void ShowWindow(bool bShow = true);
-    uint32_t ShowModal();
+    DuiResponseVal ShowModal();
     HANDLE_WND GetWND();
     void       SetWND(HANDLE_WND wndHandle);
-    void       Close(){
-        UI_CLOSE_WINDOW(GetWND(),0);
+    void       Close(DuiResponseVal val=DUI_RESPONSE_OK){
+        UI_CLOSE_WINDOW(GetWND(),val);
     }
     void       CenterWindow();
 

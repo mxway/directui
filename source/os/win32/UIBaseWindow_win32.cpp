@@ -107,7 +107,7 @@ void UIBaseWindow::ShowWindow(bool bShow) {
     ::ShowWindow(this->GetWND(), bShow ? SW_SHOWNORMAL : SW_HIDE);
 }
 
-uint32_t UIBaseWindow::ShowModal() {
+DuiResponseVal UIBaseWindow::ShowModal() {
     assert(::IsWindow(this->GetWND()));
     UINT nRet = 0;
     HWND hWndParent = GetWindowOwner(this->GetWND());
@@ -129,7 +129,7 @@ uint32_t UIBaseWindow::ShowModal() {
     ::EnableWindow(hWndParent, TRUE);
     ::SetFocus(hWndParent);
     if( msg.message == WM_QUIT ) ::PostQuitMessage(msg.wParam);
-    return nRet;
+    return (DuiResponseVal)(nRet);
 }
 
 void UIBaseWindow::Maximize() {
