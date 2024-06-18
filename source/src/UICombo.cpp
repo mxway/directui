@@ -1030,6 +1030,12 @@ SIZE UICombo::EstimateSize(SIZE szAvailable) {
 }
 
 void UICombo::SetPos(RECT rc, bool bNeedInvalidate) {
+#ifdef __linux__
+    if(m_pWindow != nullptr){ //linux系统下,当m_pWindow不为空，表示下拉框弹出，此时不能够设置
+        //下拉元素大小为0,否则下拉显示空白。
+        return;
+    }
+#endif
     // Put all elements out of sight
     RECT rcNull = { 0 };
     for( int i = 0; i < m_items.GetSize(); i++ ) static_cast<UIControl*>(m_items[i])->SetPos(rcNull, false);

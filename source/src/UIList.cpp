@@ -1867,7 +1867,7 @@ bool UIListElement::IsSelected() const {
 
 bool UIListElement::Select(bool select, bool bTriggerEvent) {
     if( !IsEnabled() ) return false;
-    if( select == m_selected ) return true;
+    //if( select == m_selected ) return true;
     m_selected = select;
     if( select && m_owner != nullptr ) m_owner->SelectItem(m_index, bTriggerEvent);
     Invalidate();
