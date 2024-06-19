@@ -146,7 +146,7 @@ public:
 
     virtual     UIControl   *FindControl(FindControlProc Proc, LPVOID pData, uint32_t uFlags);
 
-    void                    Invalidate();
+    virtual void            Invalidate();
     bool                    IsUpdateNeeded()const;
     void                    NeedUpdate();
     void                    NeedParentUpdate();

@@ -408,7 +408,7 @@ public:
     bool                IsExpanded()const;
     bool                Expand(bool expand=true);
 
-    void                Invalidate();
+    void                Invalidate()override;
     bool                Activate()override;
     void                DoEvent(TEventUI &event)override;
     void                SetAttribute(const char *pstrName, const char *pstrValue)override;

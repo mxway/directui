@@ -19,6 +19,7 @@
 #include <UIEdit.h>
 #include <UIList.h>
 #include <UICombo.h>
+#include <UITreeView.h>
 #include "SkinFileReaderService.h"
 
 typedef UIControl* (*LPCREATECONTROL)(const char *pstrType);
@@ -126,8 +127,8 @@ static void ParseFontAttribute(XMLElement *fontNode)
 static void ParseDefaultAttribute(XMLElement *defaultNode, UIPaintManager *manager)
 {
     const XMLAttribute *attribute = defaultNode->FirstAttribute();
-    const char *pControlName = NULL;
-    const char *pControlValue = NULL;
+    const char *pControlName = nullptr;
+    const char *pControlValue = nullptr;
     bool shared = false;
     while(attribute != nullptr){
         const char *pstrName = attribute->Name();
@@ -194,8 +195,8 @@ UIControl *UIDlgBuilder::Create(IDialogBuilderCallback *callback, UIPaintManager
 }
 
 UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent, UIPaintManager *manager) {
-    IContainerUI* pContainer = NULL;
-    UIControl* pReturn = NULL;
+    IContainerUI* pContainer = nullptr;
+    UIControl* pReturn = nullptr;
     for( XMLElement *node = parent->FirstChildElement() ; node != nullptr ; node = node->NextSiblingElement() ) {
         const char *pstrClass = node->Name();
         if( strcasecmp(pstrClass, "Image") == 0 || strcasecmp(pstrClass, "Font") == 0 \
@@ -217,9 +218,8 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
             continue;
         }
         else if( strcasecmp(pstrClass, "TreeNode") == 0 ) {
-#if 0
-            CTreeNodeUI* pParentNode	= static_cast<CTreeNodeUI*>(pParent->GetInterface(_T("TreeNode")));
-            CTreeNodeUI* pNode			= new CTreeNodeUI();
+            UITreeNode* pParentNode	= static_cast<UITreeNode*>(pParent->GetInterface(UIString{"TreeNode"}));
+            auto* pNode			= new UITreeNode();
             if(pParentNode){
                 if(!pParentNode->Add(pNode)){
                     delete pNode;
@@ -228,29 +228,24 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
             }
 
             // 若有控件默认配置先初始化默认属性
-            if( pManager ) {
-                pNode->SetManager(pManager, NULL, false);
-                LPCTSTR pDefaultAttributes = pManager->GetDefaultAttributeList(pstrClass);
+            if( manager ) {
+                pNode->SetManager(manager, nullptr, false);
+                const char *pDefaultAttributes = manager->GetDefaultAttributeList(pstrClass);
                 if( pDefaultAttributes ) {
                     pNode->SetAttributeList(pDefaultAttributes);
                 }
             }
-
             // 解析所有属性并覆盖默认属性
-            if( node.HasAttributes() ) {
-                TCHAR szValue[500] = { 0 };
-                SIZE_T cchLen = lengthof(szValue) - 1;
-                // Set ordinary attributes
-                int nAttributes = node.GetAttributeCount();
-                for( int i = 0; i < nAttributes; i++ ) {
-                    pNode->SetAttribute(node.GetAttributeName(i), node.GetAttributeValue(i));
-                }
+            const XMLAttribute *xmlAttribute = node->FirstAttribute();
+            while(xmlAttribute){
+                pNode->SetAttribute(xmlAttribute->Name(),xmlAttribute->Value());
+                xmlAttribute = xmlAttribute->Next();
             }
 
             //检索子节点及附加控件
-            if(node.HasChildren()){
-                CControlUI* pSubControl = _Parse(&node,pNode,pManager);
-                if(pSubControl && _tcsicmp(pSubControl->GetClass(),_T("TreeNodeUI")) != 0)
+            if(node->FirstChildElement()!=nullptr){
+                UIControl* pSubControl = _Parse(node,pNode,manager);
+                if(pSubControl && strcasecmp(pSubControl->GetClass().GetData(),"TreeNodeUI") != 0)
                 {
                     // 					pSubControl->SetFixedWidth(30);
                     // 					CHorizontalLayoutUI* pHorz = pNode->GetTreeNodeHoriznotal();
@@ -260,15 +255,14 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
             }
 
             if(!pParentNode){
-                CTreeViewUI* pTreeView = static_cast<CTreeViewUI*>(pParent->GetInterface(_T("TreeView")));
-                ASSERT(pTreeView);
-                if( pTreeView == NULL ) return NULL;
+                UITreeView* pTreeView = static_cast<UITreeView*>(pParent->GetInterface(UIString{"TreeView"}));
+                assert(pTreeView);
+                if( pTreeView == nullptr ) return nullptr;
                 if( !pTreeView->Add(pNode) ) {
                     delete pNode;
                     continue;
                 }
             }
-#endif
             continue;
         }
         else {
@@ -285,7 +279,7 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
                         pControl = new UIText;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_TREE) == 0 ){
-                        //pControl = new CTreeViewUI;
+                        pControl = new UITreeView;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_HBOX) == 0 )
                     {
@@ -338,10 +332,10 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
                         //pControl = new CDateTimeUI;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_TREEVIEW) == 0 ){
-                        //pControl = new CTreeViewUI;
+                        pControl = new UITreeView;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_TREENODE) == 0 ){
-                        //pControl = new CTreeNodeUI;
+                        pControl = new UITreeNode;
                     }
                     break;
                 case 9:
@@ -432,9 +426,6 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
         if( node->FirstChildElement() != nullptr ) {
             _Parse(node, pControl, manager);
         }
-        //TCHAR szValue[256] = { 0 };
-        //int cchLen = lengthof(szValue) - 1;
-        // Attach to parent
         // 因为某些属性和父窗口相关，比如selected，必须先Add到父窗口
         if( pParent != nullptr ) {
             const char *coverValue = nullptr;
@@ -442,36 +433,21 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
             if(coverValue != nullptr && strcasecmp(coverValue, "true")==0){
                 pParent->SetCover(pControl);
             }else{
-                if( pContainer == nullptr ) pContainer = static_cast<IContainerUI*>(pParent->GetInterface(UIString{DUI_CTR_ICONTAINER}));
-                assert(pContainer);
-                if( pContainer == nullptr ) return nullptr;
-                if( !pContainer->Add(pControl) ) {
-                    pControl->Delete();
-                    continue;
-                }
-            }
-#if 0
-        //TODO 实现cover以及TreeNodUI控件
-            //LPCTSTR lpValue = szValue;
-            if( node.GetAttributeValue(_T("cover"), szValue, cchLen) && _tcscmp(lpValue, _T("true")) == 0 ) {
-                pParent->SetCover(pControl);
-            }
-            else {
-                CTreeNodeUI* pContainerNode = static_cast<CTreeNodeUI*>(pParent->GetInterface(UIString{DUI_CTR_TREENODE}));
+                auto* pContainerNode = static_cast<UITreeNode*>(pParent->GetInterface(UIString{DUI_CTR_TREENODE}));
                 if(pContainerNode)
-                    pContainerNode->GetTreeNodeHoriznotal()->Add(pControl);
+                    pContainerNode->GetTreeNodeHorizontal()->Add(pControl);
                 else
                 {
-                    if( pContainer == NULL ) pContainer = static_cast<IContainerUI*>(pParent->GetInterface(DUI_CTR_ICONTAINER));
-                    ASSERT(pContainer);
-                    if( pContainer == NULL ) return NULL;
+                    if( pContainer == nullptr ) pContainer = static_cast<IContainerUI*>(pParent->GetInterface(UIString{DUI_CTR_ICONTAINER}));
+                    assert(pContainer);
+                    if( pContainer == nullptr ) return nullptr;
                     if( !pContainer->Add(pControl) ) {
                         pControl->Delete();
                         continue;
                     }
                 }
+
             }
-#endif
         }
         // Init default attributes
         if( manager ) {
@@ -491,7 +467,7 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
             }
         }
         if( manager ) {
-            pControl->SetManager(NULL, NULL, false);
+            pControl->SetManager(nullptr, nullptr, false);
         }
         // Return first item
         if( pReturn == nullptr ) pReturn = pControl;

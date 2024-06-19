@@ -6,7 +6,7 @@ class UIPtrArray
 {
 public:
     explicit UIPtrArray(int preAllocSize=0);
-    explicit UIPtrArray(const UIPtrArray &src);
+    UIPtrArray(const UIPtrArray &src);
     ~UIPtrArray();
 
     void    Empty();
