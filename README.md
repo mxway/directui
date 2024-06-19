@@ -149,4 +149,4 @@ make -j4
 
 - [ ] Duilib原版本中的其它示例的移植
 
-- [ ] Tree控件
+- [ ] RichEdit控件
