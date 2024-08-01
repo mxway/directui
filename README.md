@@ -111,35 +111,35 @@ make -j4
 
 * windows 操作系统
 
-![360safe_win](https://github.com/mxway/directui/blob/main/images/win_360safe.png)
-![list_win](https://github.com/mxway/directui/blob/main/images/win_list.png)
-![richlist_win](https://github.com/mxway/directui/blob/main/images/win_richlist.png)
-![gamedemo_win](https://github.com/mxway/directui/blob/main/images/win_gamedemo.png)
+![360safe_win](images/win_360safe.png)
+![list_win](images/win_list.png)
+![richlist_win](images/win_richlist.png)
+![gamedemo_win](images/win_gamedemo.png)
 
 * Ubuntu 20
 
-![360safe_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_360safe.png)
-![list_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_list.png)
-![richlist_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_richlist.png)
-![gamedemo_ubuntu](https://github.com/mxway/directui/blob/main/images/ubuntu_gamedemo.png)
+![360safe_ubuntu](images/ubuntu_360safe.png)
+![list_ubuntu](images/ubuntu_list.png)
+![richlist_ubuntu](images/ubuntu_richlist.png)
+![gamedemo_ubuntu](images/ubuntu_gamedemo.png)
 
 * deepin
 
-![360safe_deepin](https://github.com/mxway/directui/blob/main/images/deepin_360safe.png)
-![list_deepin](https://github.com/mxway/directui/blob/main/images/deepin_list.png)
+![360safe_deepin](images/deepin_360safe.png)
+![list_deepin](images/deepin_list.png)
 
 * 银河麒麟
 
-​    ![360safe_kylin](https://github.com/mxway/directui/blob/main/images/kylin_360safe.png)
+​    ![360safe_kylin](images/kylin_360safe.png)
 
-​    ![list_kylin](https://github.com/mxway/directui/blob/main/images/kylin_list.png)
+​    ![list_kylin](images/kylin_list.png)
 
 * UOS
 
 ## 技术交流
 
 欢迎添加微信进行技术交流
-![微信联系方式](https://github.com/mxway/directui/blob/main/images/%E5%BE%AE%E4%BF%A1%E8%81%94%E7%B3%BB%E6%96%B9%E5%BC%8F.jpg)
+![微信联系方式](images/%E5%BE%AE%E4%BF%A1%E8%81%94%E7%B3%BB%E6%96%B9%E5%BC%8F.jpg)
 
 ## TODO
 
