@@ -4,6 +4,7 @@
 #include "UIString.h"
 #include <memory>
 #include "UIPaintManager.h"
+#include "UIBackend.h"
 
 using namespace std;
 

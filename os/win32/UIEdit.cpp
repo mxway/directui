@@ -110,7 +110,7 @@ void UIEditInternal::DoEvent(TEventUI &event) {
 uint32_t UIEditInternal::CalculateTextOffset() {
     uint32_t result = 0;
     for(int i=0;i<=m_currentEditPos && i<m_textWidthList.GetSize();i++){
-        result += (int)m_textWidthList.GetAt(i);
+        result += reinterpret_cast<size_t>(m_textWidthList.GetAt(i));
     }
     return result;
 }
@@ -136,7 +136,7 @@ void UIEditInternal::CalculateForNormalChartersWidth() {
     for(int i=0; i < m_text.length(); i++){
         GetTextExtentPoint32W(m_uiEdit->GetManager()->GetPaintDC(),
                               m_text.c_str() + i, 1, &szSpace);
-        m_textWidthList.Add((LPVOID)szSpace.cx);
+        m_textWidthList.Add(reinterpret_cast<LPVOID>(szSpace.cx));
     }
     SelectObject(m_uiEdit->GetManager()->GetPaintDC(),
                  hOldFont);
@@ -155,7 +155,7 @@ void UIEditInternal::CalculateForPasswordCharactersWidth() {
     m_textWidthList.Empty();
     m_textWidthList.Add((LPVOID)0);
     for(int i=0; i < m_text.length(); i++){
-        m_textWidthList.Add((LPVOID)szSpace.cx);
+        m_textWidthList.Add(reinterpret_cast<LPVOID>(szSpace.cx));
     }
 }
 
@@ -164,7 +164,7 @@ void UIEditInternal::CalculateCurrentEditPositionFromMousePoint(POINT pt) {
     m_currentEditPos = -1;
     int totalLength = 0;
     for(int i=0; i < m_textWidthList.GetSize(); i++){
-        totalLength += (int)m_textWidthList.GetAt(i);
+        totalLength += reinterpret_cast<size_t>(m_textWidthList.GetAt(i));
         int textPos = m_uiEdit->GetPos().left + m_uiEdit->GetTextPadding().left + totalLength;
         if(abs(pt.x - textPos) < width){
             m_currentEditPos = i;
@@ -207,7 +207,7 @@ void UIEditInternal::InsertCharAtEditPosition(wchar_t character) {
                                 str,1, &szSpace);
     }
     ::SelectObject(m_uiEdit->GetManager()->GetPaintDC(),hOldFont);
-    m_textWidthList.InsertAt(m_currentEditPos, (LPVOID)szSpace.cx);
+    m_textWidthList.InsertAt(m_currentEditPos, reinterpret_cast<LPVOID>(szSpace.cx));
     this->ShowCaretAndSetImmPosition();
 }
 

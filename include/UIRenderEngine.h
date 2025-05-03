@@ -1,6 +1,7 @@
 ﻿#ifndef DIRECTUI_UIRENDERENGINE_H
 #define DIRECTUI_UIRENDERENGINE_H
 #include "UIDefine.h"
+#include <UIBackend.h>
 
 
 class UIPaintManager;

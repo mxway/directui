@@ -835,7 +835,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     POINT pt = { rc.left, rc.top };
     int iLinkIndex = 0;
     int cxLine = 0;
-    int cyLine = tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1);
+    int cyLine = tm.tmHeight + tm.tmExternalLeading + reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
     int cyMinHeight = 0;
     int cxMaxWidth = 0;
     POINT ptLinkStart = { 0 };
@@ -902,7 +902,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
             if( pt.y > rc.bottom && bDraw )
                 break;
             ptLinkStart = pt;
-            cyLine = tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1);
+            cyLine = tm.tmHeight + tm.tmExternalLeading + reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
             if( pt.x >= rc.right )
                 break;
         }
@@ -937,7 +937,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                         if( sHoverLink == *pStr ) clrColor = pManager->GetDefaultLinkHoverFontColor();
                     }
 
-                    aColorArray.Add((LPVOID)clrColor);
+                    aColorArray.Add(reinterpret_cast<LPVOID>(clrColor));
                     ::SetTextColor(hDC,  RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
                     UIFont *pFontInfo = UIResourceMgr::GetInstance().GetFont(iDefaultFont);
                     if( aFontArray.GetSize() > 0 ) pFontInfo = (UIFont*)aFontArray.GetAt(aFontArray.GetSize() - 1);
@@ -964,7 +964,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                         aFontArray.Add(pFontInfo);
                         GetFontTextMetrics(hDC,pFontInfo->GetHandle(),&tm);
                         ::SelectObject(hDC, pFontInfo->GetHandle());
-                        cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
+                        cyLine = MAX(static_cast<LONG>(cyLine), tm.tmHeight + tm.tmExternalLeading + static_cast<LONG>(reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1))));
                     }
                     ptLinkStart = pt;
                     bInLink = true;
@@ -1001,7 +1001,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                         GetFontTextMetrics(hDC,pFontInfo->GetHandle(),&tm);
                         //pTm = &pFontInfo->tm;
                         ::SelectObject(hDC, pFontInfo->GetHandle());
-                        cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
+                        cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + static_cast<long>(reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1))));
                     }
                 }
                     break;
@@ -1011,7 +1011,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     while( *pstrText > L'\0' && *pstrText <= L' ' ) pstrText = CharNextW(pstrText);
                     if( *pstrText == L'#') pstrText++;
                     DWORD clrColor = wcstol(pstrText, const_cast<wchar_t**>(&pstrText), 16);
-                    aColorArray.Add((LPVOID)clrColor);
+                    aColorArray.Add(reinterpret_cast<LPVOID>(clrColor));
                     ::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
                 }
                     break;
@@ -1082,7 +1082,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                         GetFontTextMetrics(hDC, pFontInfo->GetHandle(), &tm);
                         ::SelectObject(hDC, pFontInfo->GetHandle());
                     }
-                    cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
+                    cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (LONG)reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1)));
                 }
                     break;
                 case L'i':  // Italic or Image
@@ -1134,7 +1134,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                             aFontArray.Add(pFontInfo);
                             GetFontTextMetrics(hDC,pFontInfo->GetHandle(),&tm);
                             ::SelectObject(hDC, pFontInfo->GetHandle());
-                            cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
+                            cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + static_cast<long>(reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1))));
                         }
                     }
                     else {
@@ -1201,7 +1201,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                                 if( bDraw && bLineDraw ) {
                                     UIRect rcImage(pt.x + cxOffset, pt.y + cyLineHeight - iHeight, pt.x + + cxOffset + iWidth, pt.y + cyLineHeight);
                                     iVAlign = DT_BOTTOM;
-                                    if (aVAlignArray.GetSize() > 0) iVAlign = (UINT)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
+                                    if (aVAlignArray.GetSize() > 0) iVAlign = reinterpret_cast<size_t>(aVAlignArray.GetAt(aVAlignArray.GetSize() - 1));
                                     if (iVAlign == DT_VCENTER) {
                                         if( iHeight < cyLineHeight ) {
                                             rcImage.bottom -= (cyLineHeight - iHeight) / 2;
@@ -1247,8 +1247,8 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     if( pt.x > rc.left ) bLineEnd = true;
                     while( *pstrText > L'\0' && *pstrText <= L' ' ) pstrText = CharNextW(pstrText);
                     int cyLineExtra = (int)wcstol(pstrText, const_cast<wchar_t **>(&pstrText), 10);
-                    aPIndentArray.Add((LPVOID)cyLineExtra);
-                    cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + cyLineExtra);
+                    aPIndentArray.Add(reinterpret_cast<LPVOID>(cyLineExtra));
+                    cyLine = MAX(static_cast<LONG>(cyLine), tm.tmHeight + tm.tmExternalLeading + cyLineExtra);
                 }
                     break;
                 case L'v':  // Vertical Align
@@ -1270,7 +1270,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     UINT iVAlign = DT_BOTTOM;
                     if (sVAlignStyle.CompareNoCase(UIString{"center"}) == 0) iVAlign = DT_VCENTER;
                     else if (sVAlignStyle.CompareNoCase(UIString{"top"}) == 0) iVAlign = DT_TOP;
-                    aVAlignArray.Add((LPVOID)iVAlign);
+                    aVAlignArray.Add(reinterpret_cast<LPVOID>(iVAlign));
                 }
                     break;
                 case L'r':  // Raw Text
@@ -1317,7 +1317,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                         aFontArray.Add(pFontInfo);
                         GetFontTextMetrics(hDC,pFontInfo->GetHandle(),&tm);
                         ::SelectObject(hDC, pFontInfo->GetHandle());
-                        cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
+                        cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + static_cast<LONG>(reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1))));
                     }
                 }
                     break;
@@ -1354,7 +1354,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     pstrText++;
                     aColorArray.Remove(aColorArray.GetSize() - 1);
                     DWORD clrColor = dwTextColor;
-                    if( aColorArray.GetSize() > 0 ) clrColor = (int)aColorArray.GetAt(aColorArray.GetSize() - 1);
+                    if( aColorArray.GetSize() > 0 ) clrColor = reinterpret_cast<size_t>(aColorArray.GetAt(aColorArray.GetSize() - 1));
                     ::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
                 }
                     break;
@@ -1362,7 +1362,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     pstrText++;
                     if( pt.x > rc.left ) bLineEnd = true;
                     aPIndentArray.Remove(aPIndentArray.GetSize() - 1);
-                    cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
+                    cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + static_cast<long>(reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1))));
                     break;
                 case L'v':
                     pstrText++;
@@ -1386,7 +1386,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     }
                     aColorArray.Remove(aColorArray.GetSize() - 1);
                     DWORD clrColor = dwTextColor;
-                    if( aColorArray.GetSize() > 0 ) clrColor = (int)aColorArray.GetAt(aColorArray.GetSize() - 1);
+                    if( aColorArray.GetSize() > 0 ) clrColor = reinterpret_cast<size_t>(aColorArray.GetAt(aColorArray.GetSize() - 1));
                     ::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
                     bInLink = false;
                 }
@@ -1406,7 +1406,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                     }
                     GetFontTextMetrics(hDC,pFontInfo->GetHandle(),&tm);
                     ::SelectObject(hDC, pFontInfo->GetHandle());
-                    cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + (int)aPIndentArray.GetAt(aPIndentArray.GetSize() - 1));
+                    cyLine = MAX((LONG)cyLine, tm.tmHeight + tm.tmExternalLeading + static_cast<long>(reinterpret_cast<size_t>(aPIndentArray.GetAt(aPIndentArray.GetSize() - 1))));
                 }
                     break;
             }
@@ -1419,7 +1419,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
             ::GetTextExtentPoint32W(hDC, &pstrText[1], 1, &szSpace);
             if( bDraw && bLineDraw ) {
                 iVAlign = DT_BOTTOM;
-                if (aVAlignArray.GetSize() > 0) iVAlign = (UINT)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
+                if (aVAlignArray.GetSize() > 0) iVAlign = reinterpret_cast<size_t>(aVAlignArray.GetAt(aVAlignArray.GetSize() - 1));
                 if (iVAlign == DT_VCENTER)
                     ::TextOutW(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - tm.tmHeight - tm.tmExternalLeading) / 2,
                                 &pstrText[1], 1);
@@ -1439,7 +1439,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
             ::GetTextExtentPoint32W(hDC, &pstrText[1], 1, &szSpace);
             if( bDraw && bLineDraw ) {
                 iVAlign = DT_BOTTOM;
-                if (aVAlignArray.GetSize() > 0) iVAlign = (UINT)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
+                if (aVAlignArray.GetSize() > 0) iVAlign = reinterpret_cast<size_t>(aVAlignArray.GetAt(aVAlignArray.GetSize() - 1));
                 if (iVAlign == DT_VCENTER)
                     ::TextOutW(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - tm.tmHeight - tm.tmExternalLeading) / 2,
                                 &pstrText[1], 1);
@@ -1461,7 +1461,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
             // underline formatting.
             if( bDraw && bLineDraw ) {
                 iVAlign = DT_BOTTOM;
-                if (aVAlignArray.GetSize() > 0) iVAlign = (UINT)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
+                if (aVAlignArray.GetSize() > 0) iVAlign = reinterpret_cast<size_t>(aVAlignArray.GetAt(aVAlignArray.GetSize() - 1));
                 if (iVAlign == DT_VCENTER)
                     ::TextOut(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - tm.tmHeight - tm.tmExternalLeading) / 2,
                                 " ", 1);
@@ -1546,7 +1546,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
             ::GetTextExtentPoint32W(hDC, pstrText, cchSize, &szText);
             if( bDraw && bLineDraw ) {
                 iVAlign = DT_BOTTOM;
-                if (aVAlignArray.GetSize() > 0) iVAlign = (UINT)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
+                if (aVAlignArray.GetSize() > 0) iVAlign = reinterpret_cast<size_t>(aVAlignArray.GetAt(aVAlignArray.GetSize() - 1));
                 if (iVAlign == DT_VCENTER)
                     ::TextOutW(hDC, pt.x + cxOffset, pt.y + (cyLineHeight - tm.tmHeight - tm.tmExternalLeading) / 2,
                                 pstrText, cchSize);
@@ -1591,7 +1591,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 bInSelected = bLineInSelected;
 
                 DWORD clrColor = dwTextColor;
-                if( aColorArray.GetSize() > 0 ) clrColor = (int)aColorArray.GetAt(aColorArray.GetSize() - 1);
+                if( aColorArray.GetSize() > 0 ) clrColor = reinterpret_cast<size_t>(aColorArray.GetAt(aColorArray.GetSize() - 1));
                 ::SetTextColor(hDC, RGB(GetBValue(clrColor), GetGValue(clrColor), GetRValue(clrColor)));
                 auto* pFontInfo = (UIFont*)aFontArray.GetAt(aFontArray.GetSize() - 1);
                 if( pFontInfo == NULL ) pFontInfo = UIResourceMgr::GetInstance().GetFont(iDefaultFont);

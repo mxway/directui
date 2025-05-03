@@ -1,14 +1,16 @@
 ﻿#include <UIRect.h>
 #include <cassert>
 #include <cstring>
+#include <ctime>
+#include "UIDefine.h"
 
 #ifndef WIN32
 bool SetRectEmpty(
     LPRECT prc)
 {
-    if (prc == NULL) return FALSE;
+    if (prc == NULL) return false;
     memset(prc, 0, sizeof(RECT));
-    return TRUE;
+    return true;
 }
 
 bool UnionRect(

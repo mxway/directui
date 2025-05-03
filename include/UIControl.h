@@ -2,6 +2,7 @@
 #define DIRECTUI_UICONTROL_H
 #include "UIString.h"
 #include "UIDefine.h"
+#include "UIBackend.h"
 #include "UIDelegate.h"
 #include "UIStringPtrMap.h"
 

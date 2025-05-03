@@ -1,6 +1,7 @@
 ﻿#ifndef DIRECTUI_UIFONT_H
 #define DIRECTUI_UIFONT_H
 #include "UIDefine.h"
+#include "UIBackend.h"
 #include "UIString.h"
 
 class UIFont
