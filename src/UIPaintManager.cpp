@@ -109,11 +109,13 @@ void UIPaintManager::SetFocus(UIControl *pControl, bool bFocusWnd) {
 #ifdef WIN32
     HWND hFocusWnd = ::GetFocus();
     if( bFocusWnd && hFocusWnd != m_paintWnd && pControl != m_pFocus && !m_bNoActivate) ::SetFocus(m_paintWnd);
-#else
+#elif defined(GTK_BACKEND)
     GtkWidget *focusWidget = gtk_window_get_focus(GTK_WINDOW(m_paintWnd));
     if( bFocusWnd && focusWidget != m_paintWnd && pControl != m_pFocus && !m_bNoActivate) {
         gtk_window_set_focus(GTK_WINDOW(m_paintWnd), m_paintWnd);
     }
+#else
+    //TODO x11 add code set focus
 #endif
     // Already has focus?
     if( pControl == m_pFocus ) return;

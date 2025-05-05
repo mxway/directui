@@ -1,7 +1,7 @@
-﻿#include <UIPaintManager.h>
+﻿#include "UIPaintManager.h"
 #include <gtk/gtk.h>
-#include <UIBaseWindow.h>
-#include <UIRect.h>
+#include "UIBaseWindow.h"
+#include "UIRect.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>

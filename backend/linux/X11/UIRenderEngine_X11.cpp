@@ -1,468 +1,105 @@
-﻿#include <UIRenderEngine.h>
-#include <UIRect.h>
+#include "UIRenderEngine.h"
+#include "X11HDC.h"
+#include "UIResourceMgr.h"
+#include "UIRect.h"
 #include <cassert>
-#include <UIPaintManager.h>
-#include <UIResourceMgr.h>
-#include <iostream>
-
-using namespace std;
+#include <pango/pango-layout.h>
+#include <pango/pangoxft.h>
 
 static int g_iFontID = MAX_FONT_ID;
-
-#define LOBYTE(v) ((v)&0xff)
-#define UIGetAValue(rgb) (LOBYTE((rgb)>>24))
-#define UIGetBValue(rgb) (LOBYTE(rgb))
-#define UIGetGValue(rgb) (LOBYTE(((uint16_t)(rgb)) >> 8))
-#define UIGetRValue(rgb) (LOBYTE((rgb)>>16))
-
-static bool AlphaBlend(cairo_t* cr, GdkPixbuf *sPixbuf, int dx, int dy, int dWidth, int dHeight,
-                           int sx, int sy, int sWidth, int sHeight, int alpha)
-{
-
-    GdkPixbuf *SubPixbuf;
-    GdkPixbuf *NewPixbuf;
-
-    //
-    // get the sub pixbuf from source pixbuf
-    //
-
-    SubPixbuf = gdk_pixbuf_new_subpixbuf(sPixbuf, sx, sy, sWidth, sHeight);
-    if (!SubPixbuf){
-        return false;
-    }
-
-    //
-    // create a new buffer for destination
-    //
-
-    NewPixbuf = gdk_pixbuf_new(gdk_pixbuf_get_colorspace(sPixbuf),
-                               gdk_pixbuf_get_has_alpha(sPixbuf), 8, dWidth, dHeight);
-    if (!NewPixbuf){
-        g_object_unref(SubPixbuf);
-        return false;
-    }
-
-    //
-    // scale the buffer for destination
-    //
-
-    gdk_pixbuf_scale(SubPixbuf, NewPixbuf, 0, 0, dWidth, dHeight, 0, 0,
-                     (double)dWidth/sWidth, (double)dHeight/sHeight, GDK_INTERP_BILINEAR);
-
-    //
-    // draw the pixbuf
-    //
-
-    gdk_cairo_set_source_pixbuf(cr, NewPixbuf, dx , dy);
-    cairo_paint_with_alpha(cr, (double)alpha/255);
-
-    //
-    // clean up
-    //
-
-    g_object_unref(NewPixbuf);
-    g_object_unref(SubPixbuf);
-
-    return true;
-}
 
 void UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT &rc, const RECT &rcPaint,
                                const RECT &rcBmpPart, const RECT &rcScale9, bool alpha, uint8_t uFade, bool hole,
                                bool xtiled, bool ytiled) {
-    RECT rcDest;
-    RECT rcTemp;
 
-    //
-    // middle
-    //
-
-    if(!hole){
-        rcDest.left = rc.left + rcScale9.left;
-        rcDest.top = rc.top + rcScale9.top;
-        rcDest.right = rc.right - rc.left - rcScale9.left - rcScale9.right;
-        rcDest.bottom = rc.bottom - rc.top - rcScale9.top - rcScale9.bottom;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
-            if(!xtiled && !ytiled) {
-                rcDest.right -= rcDest.left;
-                rcDest.bottom -= rcDest.top;
-                AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                    rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, \
-                    rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right, \
-                    rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
-
-            }else if(xtiled && ytiled){
-                long lWidth = rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right;
-                long lHeight = rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom;
-                int iTimesX = (rcDest.right - rcDest.left + lWidth - 1) / lWidth;
-                int iTimesY = (rcDest.bottom - rcDest.top + lHeight - 1) / lHeight;
-                for(int j = 0; j < iTimesY; ++j){
-                    long lDestTop = rcDest.top + lHeight * j;
-                    long lDestBottom = rcDest.top + lHeight * (j + 1);
-                    long lDrawHeight = lHeight;
-                    if(lDestBottom > rcDest.bottom){
-                        lDrawHeight -= lDestBottom - rcDest.bottom;
-                        lDestBottom = rcDest.bottom;
-                    }
-                    for(int i = 0; i < iTimesX; ++i){
-                        long lDestLeft = rcDest.left + lWidth * i;
-                        long lDestRight = rcDest.left + lWidth * (i + 1);
-                        long lDrawWidth = lWidth;
-                        if( lDestRight > rcDest.right ) {
-                            lDrawWidth -= lDestRight - rcDest.right;
-                            lDestRight = rcDest.right;
-                        }
-                        AlphaBlend(hDC, hBitmap, rcDest.left + lWidth * i, rcDest.top + lHeight * j,
-                                   lDestRight - lDestLeft, lDestBottom - lDestTop,
-                                   rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, lDrawWidth, lDrawHeight, uFade);
-                    }
-                }
-            }else if(xtiled){
-                long lWidth = rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right;
-                int iTimes = (rcDest.right - rcDest.left + lWidth - 1) / lWidth;
-                for(int i = 0; i < iTimes; ++i){
-                    long lDestLeft = rcDest.left + lWidth * i;
-                    long lDestRight = rcDest.left + lWidth * (i + 1);
-                    long lDrawWidth = lWidth;
-                    if(lDestRight > rcDest.right){
-                        lDrawWidth -= lDestRight - rcDest.right;
-                        lDestRight = rcDest.right;
-                    }
-                    AlphaBlend(hDC, hBitmap, lDestLeft, rcDest.top, lDestRight - lDestLeft, rcDest.bottom,
-                               rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, \
-                        lDrawWidth, rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
-                }
-            }else{
-
-                //
-                // ytiled
-                //
-
-                long lHeight = rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom;
-                int iTimes = (rcDest.bottom - rcDest.top + lHeight - 1) / lHeight;
-                for(int i = 0; i < iTimes; ++i){
-                    long lDestTop = rcDest.top + lHeight * i;
-                    long lDestBottom = rcDest.top + lHeight * (i + 1);
-                    long lDrawHeight = lHeight;
-                    if(lDestBottom > rcDest.bottom){
-                        lDrawHeight -= lDestBottom - rcDest.bottom;
-                        lDestBottom = rcDest.bottom;
-                    }
-                    AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top + lHeight * i, rcDest.right, lDestBottom - lDestTop,
-                               rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, \
-                        rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right, lDrawHeight, uFade);
-                }
-            }
-        }
-    }
-
-    //
-    // left-top
-    //
-
-    if(rcScale9.left > 0 && rcScale9.top > 0){
-        rcDest.left = rc.left;
-        rcDest.top = rc.top;
-        rcDest.right = rcScale9.left;
-        rcDest.bottom = rcScale9.top;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if( UIIntersectRect(&rcTemp, &rcPaint, &rcDest) ) {
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.left, rcBmpPart.top, rcScale9.left, rcScale9.top, uFade);
-        }
-    }
-
-    //
-    // top
-    //
-
-    if(rcScale9.top > 0){
-        rcDest.left = rc.left + rcScale9.left;
-        rcDest.top = rc.top;
-        rcDest.right = rc.right - rc.left - rcScale9.left - rcScale9.right;
-        rcDest.bottom = rcScale9.top;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)) {
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.left + rcScale9.left, rcBmpPart.top, rcBmpPart.right - rcBmpPart.left - \
-                rcScale9.left - rcScale9.right, rcScale9.top, uFade);
-        }
-    }
-
-    //
-    // right-top
-    //
-
-    if(rcScale9.right > 0 && rcScale9.top > 0){
-        rcDest.left = rc.right - rcScale9.right;
-        rcDest.top = rc.top;
-        rcDest.right = rcScale9.right;
-        rcDest.bottom = rcScale9.top;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.right - rcScale9.right, rcBmpPart.top, rcScale9.right, rcScale9.top, uFade);
-        }
-    }
-
-    //
-    // left
-    //
-
-    if(rcScale9.left > 0){
-        rcDest.left = rc.left;
-        rcDest.top = rc.top + rcScale9.top;
-        rcDest.right = rcScale9.left;
-        rcDest.bottom = rc.bottom - rc.top - rcScale9.top - rcScale9.bottom;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.left, rcBmpPart.top + rcScale9.top, rcScale9.left, rcBmpPart.bottom - \
-                rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
-        }
-    }
-
-    //
-    // right
-    //
-
-    if(rcScale9.right > 0){
-        rcDest.left = rc.right - rcScale9.right;
-        rcDest.top = rc.top + rcScale9.top;
-        rcDest.right = rcScale9.right;
-        rcDest.bottom = rc.bottom - rc.top - rcScale9.top - rcScale9.bottom;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.right - rcScale9.right, rcBmpPart.top + rcScale9.top, rcScale9.right, \
-                rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
-        }
-    }
-
-    //
-    // left-bottom
-    //
-
-    if(rcScale9.left > 0 && rcScale9.bottom > 0){
-        rcDest.left = rc.left;
-        rcDest.top = rc.bottom - rcScale9.bottom;
-        rcDest.right = rcScale9.left;
-        rcDest.bottom = rcScale9.bottom;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if( UIIntersectRect(&rcTemp, &rcPaint, &rcDest) ) {
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.left, rcBmpPart.bottom - rcScale9.bottom, rcScale9.left, rcScale9.bottom, uFade);
-        }
-    }
-
-    //
-    // bottom
-    //
-
-    if(rcScale9.bottom > 0){
-        rcDest.left = rc.left + rcScale9.left;
-        rcDest.top = rc.bottom - rcScale9.bottom;
-        rcDest.right = rc.right - rc.left - rcScale9.left - rcScale9.right;
-        rcDest.bottom = rcScale9.bottom;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.left + rcScale9.left, rcBmpPart.bottom - rcScale9.bottom, \
-                rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right, rcScale9.bottom, uFade);
-        }
-    }
-
-    //
-    // right-bottom
-    //
-
-    if(rcScale9.right > 0 && rcScale9.bottom > 0){
-        rcDest.left = rc.right - rcScale9.right;
-        rcDest.top = rc.bottom - rcScale9.bottom;
-        rcDest.right = rcScale9.right;
-        rcDest.bottom = rcScale9.bottom;
-        rcDest.right += rcDest.left;
-        rcDest.bottom += rcDest.top;
-        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
-            rcDest.right -= rcDest.left;
-            rcDest.bottom -= rcDest.top;
-            AlphaBlend(hDC, hBitmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
-                rcBmpPart.right - rcScale9.right, rcBmpPart.bottom - rcScale9.bottom, rcScale9.right, \
-                rcScale9.bottom, uFade);
-        }
-    }
 }
 
 void UIRenderEngine::DrawColor(HANDLE_DC hDC, const RECT &rc, uint32_t color) {
-    cairo_set_source_rgba(hDC, UIGetRValue(color)/255.0, UIGetGValue(color)/255.0,
-                          UIGetBValue(color)/255.0, UIGetAValue(color)/255.0);
-    cairo_rectangle(hDC, (double)rc.left,(double)rc.top, (double)(rc.right - rc.left), (double)(rc.bottom-rc.top));
-    cairo_fill(hDC);
+    XSetForeground(hDC->x11Window->display,hDC->gc,color);
+    XFillRectangle(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
 }
 
 void UIRenderEngine::DrawGradient(HANDLE_DC hDC, const RECT &rc, uint32_t dwFirst, uint32_t dwSecond, bool bVertical,
                                   int nSteps) {
-    cairo_pattern_t *linpat;
-
-    //
-    // create a new pattern linear
-    //
-
-    if (bVertical){
-        linpat = cairo_pattern_create_linear(0, 0, 0, (double)(rc.bottom - rc.top));
-    }else{
-        linpat = cairo_pattern_create_linear(0, 0, (double)(rc.right-rc.left), 0);
+    // 获取默认的视觉和格式
+    XRenderPictFormat *format = XRenderFindVisualFormat(hDC->x11Window->display, hDC->x11Window->visual);
+    if (!format) {
+        fprintf(stderr, "无法找到合适的 XRender 格式\n");
     }
 
+    // 创建窗口的图片（Picture）
+    Picture window_picture = XRenderCreatePicture(hDC->x11Window->display, hDC->drawablePixmap, format, 0, NULL);
 
-    //
-    // set the start end stop rgb
-    //
+    // 定义线性渐变的起点和终点
+    XLinearGradient gradient;
+    gradient.p1.x = XDoubleToFixed(rc.left);   // 起点 x 坐标
+    gradient.p1.y = XDoubleToFixed(rc.top);   // 起点 y 坐标
+    if(bVertical){
+        gradient.p2.x = XDoubleToFixed(rc.left);
+        gradient.p2.y = XDoubleToFixed(rc.bottom-rc.top);
+    }else{
+        gradient.p2.x = XDoubleToFixed(rc.right-rc.left);
+        gradient.p2.y = XDoubleToFixed(rc.top);
+    }
 
-    cairo_pattern_add_color_stop_rgba(linpat, 0.0,  UIGetRValue(dwFirst)/255.0,
-                                      UIGetGValue(dwFirst)/255.0, UIGetBValue(dwFirst)/255.0, 1);
-    cairo_pattern_add_color_stop_rgba(linpat, 1.0,  UIGetRValue(dwSecond)/255.0,
-                                      UIGetGValue(dwSecond)/255.0, UIGetBValue(dwSecond)/255.0, 1);
-    cairo_set_operator(hDC, CAIRO_OPERATOR_OVER);
+    XFixed stops[2];
+    XRenderColor colors[2];
 
-    //
-    // set the destination rectangle
-    //
+    stops[0] = XDoubleToFixed(0.0);
+    colors[0].red = XDoubleToFixed( ((dwFirst>>16) & 0xff)/256.0);
+    colors[0].green = XDoubleToFixed( ((dwFirst>>8) & 0xff)/256.0);
+    colors[0].blue = XDoubleToFixed( (dwFirst&0xff)/256.0);
+    colors[0].alpha = XDoubleToFixed( ((dwFirst>>24) & 0xff)/256.0);
 
-    cairo_rectangle(hDC, (double)rc.left, (double)rc.top, (double)(rc.right-rc.left), (double)(rc.bottom-rc.top));
+    //蓝
+    stops[1] = XDoubleToFixed(1.0);
+    colors[1].red = XDoubleToFixed( ((dwSecond>>16) & 0xff)/256.0);
+    colors[1].green = XDoubleToFixed( ((dwSecond>>8) & 0xff)/256.0);
+    colors[1].blue = XDoubleToFixed( (dwSecond&0xff)/256.0);
+    colors[1].alpha = XDoubleToFixed( ((dwSecond>>24) & 0xff)/256.0);
+    //colors[1].alpha = XDoubleToFixed( ((dwSecond>>24) & 0xff)/255.0);
 
-    //
-    // set draw source
-    //
-
-    cairo_set_source(hDC, linpat);
-
-    //
-    // fill it
-    //
-
-    cairo_fill(hDC);
-
-    cairo_pattern_destroy(linpat);
+    // 创建线性渐变图案
+    Picture gradient_picture = XRenderCreateLinearGradient(hDC->x11Window->display, &gradient, stops, colors, 2);
+    XRenderComposite(hDC->x11Window->display, PictOpSrc, gradient_picture, None, window_picture,
+                     0, 0, 0, 0, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top);
+    XRenderFreePicture(hDC->x11Window->display, gradient_picture);
+    XRenderFreePicture(hDC->x11Window->display, window_picture);
 }
 
 void UIRenderEngine::DrawLine(HANDLE_DC hDC, const RECT &rc, int nSize, uint32_t dwPenColor, int nStyle) {
-    cairo_antialias_t oldMode = cairo_get_antialias(hDC);
-    cairo_set_line_width(hDC, nSize);
-    cairo_set_antialias(hDC, CAIRO_ANTIALIAS_NONE);
-    cairo_move_to(hDC,(double)rc.left,(double)rc.top);
-    cairo_line_to(hDC, (double)rc.right,(double)rc.bottom);
-    cairo_stroke(hDC);
-    cairo_set_antialias(hDC, oldMode);
+    XSetForeground(hDC->x11Window->display,hDC->gc,dwPenColor);
+    XSetLineAttributes(hDC->x11Window->display,hDC->gc,nSize,nStyle,CapButt, JoinMiter);
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,rc.left,rc.top,rc.right,rc.bottom);
 }
 
 void UIRenderEngine::DrawRect(HANDLE_DC hDC, const RECT &rc, int nSize, uint32_t dwPenColor, int nStyle) {
-    cairo_antialias_t  oldMode = cairo_get_antialias(hDC);
-    cairo_set_antialias(hDC, CAIRO_ANTIALIAS_NONE);
-    cairo_set_line_width(hDC, nSize);
-    cairo_set_source_rgba(hDC, UIGetRValue(dwPenColor)/255.0, UIGetGValue(dwPenColor)/255.0,
-                          UIGetBValue(dwPenColor)/255.0, UIGetAValue(dwPenColor)/255.0);
-    cairo_rectangle(hDC, (double)rc.left + nSize/2.0, (double)rc.top + nSize/2.0,
-                    (double)(rc.right-rc.left) - nSize, (double)(rc.bottom-rc.top) - nSize);
-    cairo_stroke(hDC);
-    cairo_set_antialias(hDC, oldMode);
+    XSetForeground(hDC->x11Window->display,hDC->gc, dwPenColor);
+    XSetLineAttributes(hDC->x11Window->display,hDC->gc, nSize,nStyle,CapButt,JoinMiter);
+    XDrawRectangle(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
 }
 
 void UIRenderEngine::DrawRoundRect(HANDLE_DC hDC, const RECT &rc, int radiusWeight, int radiusHeight, int nSize, uint32_t dwPenColor,
                                    int nStyle) {
-    //cairo_set_operator (hDC, CAIRO_OPERATOR_SOURCE);
 
-    //cairo_paint_with_alpha(hDC,1);
-
-    double x         = (double)rc.left,        /* parameters like cairo_rectangle */
-    y         = (double)rc.top,
-            width         = (double)(rc.right - rc.left),
-            height        = (double)(rc.bottom - rc.top),
-            aspect        = 1.0;    /* aspect ratio */
-    //corner_radius = 10;   /* and corner curvature radius */
-
-    double radius = radiusWeight / aspect;
-    //double yRadius = radiusHeight / aspect;
-    double degrees = 3.1415926 / 180.0;
-
-    cairo_set_line_width(hDC, nSize);
-    cairo_new_sub_path (hDC);
-    cairo_arc (hDC, x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
-    cairo_arc (hDC, x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
-    cairo_arc (hDC, x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
-    cairo_arc (hDC, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
-    cairo_close_path (hDC);
-
-
-    cairo_set_source_rgba (hDC, UIGetRValue(dwPenColor)/255.0, UIGetGValue(dwPenColor)/255.0, UIGetBValue(dwPenColor)/255.0,
-                           UIGetAValue(dwPenColor)/255.0);
-    cairo_set_line_width(hDC, nSize);
-    cairo_stroke(hDC);
-    //cairo_fill (hDC);
 }
 
 void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
         uint32_t dwTextColor, int fontId, uint32_t uStyle)
 {
-    PangoLayout *Layout;
-    PangoFontDescription *FontDesc;
     int nFixY = rc.top;
     int nWidth = rc.right - rc.left;
     int nHeight = rc.bottom - rc.top;
+    // 创建 PangoXft 字体映射
+    PangoFontMap *font_map = pango_xft_get_font_map(hDC->x11Window->display,hDC->x11Window->screen);
+    PangoContext *context = pango_font_map_create_context(font_map);
 
-    //
-    // create pango layout with cairo
-    //
+    // 创建 Pango 布局对象
+    PangoLayout *layout = pango_layout_new(context);
+    PangoFontDescription *FontDesc;
 
-    Layout = pango_cairo_create_layout(hDC);
-    //FontDesc = pango_font_description_from_string((LPCSTR)CW2A(FONT, CP_UTF8));
-
-    //
-    // save cr.
-    //
-
-    cairo_save(hDC);
-
-    //
-    // clip the rect to make sure do not draw outsize the rectangle
-    //
-
-    cairo_rectangle(hDC, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top);
-    cairo_clip(hDC);
-
-    //
-    // set text color
-    //
-
-
-    cairo_set_source_rgb(hDC, UIGetRValue(dwTextColor)/255.0, UIGetGValue(dwTextColor)/255.0,
-                         UIGetBValue(dwTextColor)/255.0);
-
-    //
-    // get font from resource manager
-    //
+    // 设置文本内容
+    pango_layout_set_text(layout, text.GetData(), text.GetLength());
 
     UIFont  *font = UIResourceMgr::GetInstance().GetFont(fontId);
     if (font){
@@ -471,76 +108,55 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
         FontDesc = (PangoFontDescription *)UIResourceMgr::GetInstance().GetDefaultFont()->GetHandle();
     }
 
-
-    //
-    // set font to layout
-    //
-
-    pango_layout_set_font_description(Layout, FontDesc);
+    pango_layout_set_font_description(layout, FontDesc);
 
     //
     // set alignment
     //
 
     if (uStyle & DT_LEFT){
-        pango_layout_set_alignment(Layout, PANGO_ALIGN_LEFT);
+        pango_layout_set_alignment(layout, PANGO_ALIGN_LEFT);
     }else if (uStyle & DT_CENTER){
-        pango_layout_set_alignment(Layout, PANGO_ALIGN_CENTER);
+        pango_layout_set_alignment(layout, PANGO_ALIGN_CENTER);
     }else if (uStyle & DT_RIGHT){
-        pango_layout_set_alignment(Layout, PANGO_ALIGN_RIGHT);
+        pango_layout_set_alignment(layout, PANGO_ALIGN_RIGHT);
     }
 
     if (uStyle & DT_END_ELLIPSIS){
-        pango_layout_set_ellipsize(Layout, PANGO_ELLIPSIZE_END);
+        pango_layout_set_ellipsize(layout, PANGO_ELLIPSIZE_END);
     }
     UIString strText{text};
 
     if (uStyle & DT_SINGLELINE){
-        pango_layout_set_single_paragraph_mode(Layout, TRUE);
+        pango_layout_set_single_paragraph_mode(layout, TRUE);
     }else{
 
         //
         // 替换掉字符串中的\r
         //
-
-        strText.Replace("\\n", "\n");
-        pango_layout_set_single_paragraph_mode(Layout, FALSE);
+        pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
+        strText.Replace("\r\n", "\n");
+        pango_layout_set_single_paragraph_mode(layout, FALSE);
     }
 
     bool shouldReleaseAttrList = false;
-    PangoAttrList  *attrList = pango_layout_get_attributes(Layout);
+    PangoAttrList  *attrList = pango_layout_get_attributes(layout);
     if(font->GetUnderline()){
         if(attrList == nullptr){
             attrList = pango_attr_list_new();
             shouldReleaseAttrList = true;
         }
         pango_attr_list_insert(attrList, pango_attr_underline_new(PANGO_UNDERLINE_SINGLE));
-        pango_layout_set_attributes(Layout, attrList);
+        pango_layout_set_attributes(layout, attrList);
     }
 
-
-    //
-    // set draw width
-    //
-
-    pango_layout_set_width(Layout, nWidth * PANGO_SCALE/*-1*/);
-
-    //
-    // set drawing text
-    //
-
-    //if (bShowHtml){
-    //    pango_layout_set_markup(Layout, (LPCSTR)CW2U8(strTest), -1);
-    //}else{
-    pango_layout_set_text(Layout, text.GetData(), -1);
-    //}
-
-    //
-    // set vertical alignment width
-    //
+    pango_layout_set_width(layout, nWidth * PANGO_SCALE/*-1*/);
+    // 设置换行模式为自动换行
+    //pango_layout_set_width(layout, 400 * PANGO_SCALE); // 宽度限制（以 Pango 单位表示）
+    //pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR); // 自动换行
 
     int textWidth, textHeigth;
-    pango_layout_get_pixel_size(Layout, &textWidth, &textHeigth);
+    pango_layout_get_pixel_size(layout, &textWidth, &textHeigth);
 
     if (uStyle & DT_TOP){
 
@@ -559,15 +175,25 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
     // move to draw start point
     //
 
-    cairo_move_to(hDC, rc.left, nFixY);
-    pango_cairo_update_layout(hDC, Layout);
-    pango_cairo_show_layout(hDC, Layout);
-
     if(shouldReleaseAttrList){
         pango_attr_list_unref(attrList);
     }
-    g_object_unref(Layout);
-    cairo_restore(hDC);
+
+    XftColor  color;
+    color.color.red = XDoubleToFixed( ( (dwTextColor>>16)&0xff)/256.0);
+    color.color.green = XDoubleToFixed( ((dwTextColor>>8)&0xff)/256.0);
+    color.color.blue = XDoubleToFixed( (dwTextColor&0xff)/256.0);
+    color.color.alpha = XDoubleToFixed( ((dwTextColor>>24)&0xff)/256.0);
+
+    XftDraw *draw = XftDrawCreate(hDC->x11Window->display, hDC->drawablePixmap,
+                                  hDC->x11Window->visual,
+                                  hDC->x11Window->colormap);
+    pango_xft_render_layout(draw, &color,layout,rc.left*PANGO_SCALE,nFixY*PANGO_SCALE);
+
+    XftDrawDestroy(draw);
+    // 清理资源
+    g_object_unref(layout);
+    g_object_unref(context);
 }
 
 static void SetRect(RECT *rect, int left, int top, int right, int bottom)
@@ -582,7 +208,13 @@ static void GetTextExtentPoint(HANDLE_DC hDC, const char *text, int cchSize, UIF
 {
     PangoFontDescription *fontDesc = nullptr;
     memset(szText,0, sizeof(SIZE));
-    PangoLayout *Layout = pango_cairo_create_layout(hDC);
+    PangoFontMap *font_map = pango_xft_get_font_map(hDC->x11Window->display,hDC->x11Window->screen);
+    PangoContext *context = pango_font_map_create_context(font_map);
+
+    // 创建 Pango 布局对象
+    PangoLayout *layout = pango_layout_new(context);
+    //PangoLayout *Layout = pango_cairo_create_layout(hDC);
+
     if (font){
         fontDesc = (PangoFontDescription *) font->GetHandle();
     }else{
@@ -594,27 +226,30 @@ static void GetTextExtentPoint(HANDLE_DC hDC, const char *text, int cchSize, UIF
     // set font to layout
     //
 
-    pango_layout_set_font_description(Layout, fontDesc);
-    pango_layout_set_text(Layout,text,cchSize);
+    pango_layout_set_font_description(layout, fontDesc);
+    pango_layout_set_text(layout,text,cchSize);
     int width = 0;
     int height = 0;
-    pango_layout_get_pixel_size(Layout, &width, &height);
-    g_object_unref(Layout);
+    pango_layout_get_pixel_size(layout, &width, &height);
+    g_object_unref(layout);
     szText->cx = width;
     szText->cy = height;
+    g_object_unref(layout);
+    g_object_unref(context);
 }
 
 static void TextOut(HANDLE_DC hDC, uint32_t textColor, long x, long y, const char *text, int cchSize, UIFont *font)
 {
-    PangoLayout *Layout;
     PangoFontDescription *FontDesc;
 
-    //
-    // create pango layout with cairo
-    //
+    PangoFontMap *font_map = pango_xft_get_font_map(hDC->x11Window->display,hDC->x11Window->screen);
+    PangoContext *context = pango_font_map_create_context(font_map);
 
-    Layout = pango_cairo_create_layout(hDC);
-    PangoAttrList  *attrList = pango_layout_get_attributes(Layout);
+    // 创建 Pango 布局对象
+    PangoLayout *layout = pango_layout_new(context);
+    //Layout = pango_cairo_create_layout(hDC);
+
+    PangoAttrList  *attrList = pango_layout_get_attributes(layout);
     //PangoAttribute  *underLineAttribute = nullptr;
     bool shouldReleaseAttrList = false;
     if(font->GetUnderline()){
@@ -623,7 +258,7 @@ static void TextOut(HANDLE_DC hDC, uint32_t textColor, long x, long y, const cha
             shouldReleaseAttrList = true;
         }
         pango_attr_list_insert(attrList, pango_attr_underline_new(PANGO_UNDERLINE_SINGLE));
-        pango_layout_set_attributes(Layout, attrList);
+        pango_layout_set_attributes(layout, attrList);
     }
 
     if (font){
@@ -632,23 +267,29 @@ static void TextOut(HANDLE_DC hDC, uint32_t textColor, long x, long y, const cha
         FontDesc = (PangoFontDescription *)UIResourceMgr::GetInstance().GetDefaultFont()->GetHandle();
     }
 
-    cairo_set_source_rgb(hDC, UIGetRValue(textColor)/255.0, UIGetGValue(textColor)/255.0,
-                         UIGetBValue(textColor)/255.0);
+    pango_layout_set_font_description(layout, FontDesc);
 
-    pango_layout_set_font_description(Layout, FontDesc);
+    pango_layout_set_text(layout, text, cchSize);
 
-    pango_layout_set_text(Layout, text, cchSize);
+    XftColor  color;
+    color.color.red = XDoubleToFixed( ( (textColor>>16)&0xff)/256.0);
+    color.color.green = XDoubleToFixed( ((textColor>>8)&0xff)/256.0);
+    color.color.blue = XDoubleToFixed( (textColor&0xff)/256.0);
+    color.color.alpha = XDoubleToFixed( ((textColor>>24)&0xff)/256.0);
 
-    cairo_move_to(hDC, x, y-2);
-    pango_cairo_update_layout(hDC, Layout);
-    pango_cairo_show_layout(hDC, Layout);
+    XftDraw *draw = XftDrawCreate(hDC->x11Window->display, hDC->drawablePixmap,
+                                  hDC->x11Window->visual,
+                                  hDC->x11Window->colormap);
+    pango_xft_render_layout(draw, &color,layout,x*PANGO_SCALE,y*PANGO_SCALE);
+
+    XftDrawDestroy(draw);
 
     if(shouldReleaseAttrList){
         pango_attr_list_unref(attrList);
     }
 
-    g_object_unref(Layout);
-    //cairo_restore(hDC);
+    g_object_unref(layout);
+    g_object_unref(context);
 }
 
 void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text,
@@ -672,7 +313,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     //   X Indent:         <x i>                where i = hor indent in pixels
     //   Y Indent:         <y i>                where i = ver indent in pixels
     //   Vertical align    <v x>				where x = top or x = center or x = bottom
-#if 1
+#if 0
     if( text.IsEmpty() || pManager == nullptr ) return;
     UIRect rect{rc};
     if( rect.IsEmpty() ) return;
@@ -1466,8 +1107,8 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
 
                 if( pt.x >= rc.right && (uStyle & DT_END_ELLIPSIS) != 0 ) {
                     if (iVAlign == DT_VCENTER) ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx, pt.y + (cyLineHeight -
-                                                                                                   fontHeight) /
-                                                                                                  2, "...", 3,selectedFont);
+                                                                                                              fontHeight) /
+                                                                                                             2, "...", 3,selectedFont);
                     else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx, pt.y, "...", 3,selectedFont);
                     else
                         ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx,

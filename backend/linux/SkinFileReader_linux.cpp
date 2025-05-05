@@ -1,8 +1,8 @@
 #include "../../src/SkinFileReader.h"
 #include <cstdio>
 #include <cstring>
-#include <UIFileHelper.h>
-#include <UIResourceMgr.h>
+#include "UIFileHelper.h"
+#include "UIResourceMgr.h"
 
 ByteArray SkinFileReader::ReadFile(const UIString &fileName) {
     UIString  fullFileName = fileName;

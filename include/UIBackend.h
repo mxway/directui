@@ -23,6 +23,15 @@
     #ifdef _MSC_VER
     #define strcasecmp _stricmp
     #endif
+
+    //定义窗口类型
+    #define UI_WNDSTYLE_FRAME      (WS_VISIBLE | WS_OVERLAPPEDWINDOW)
+    #define UI_WNDSTYLE_CHILD      (WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN)
+    #define UI_WNDSTYLE_DIALOG     (WS_VISIBLE | WS_POPUPWINDOW | WS_CAPTION | WS_DLGFRAME | WS_CLIPSIBLINGS | WS_CLIPCHILDREN)
+
+    #define UI_WNDSTYLE_EX_FRAME   (WS_EX_WINDOWEDGE)
+    #define UI_WNDSTYLE_EX_DIALOG  (WS_EX_TOOLWINDOW | WS_EX_DLGMODALFRAME)
+
     // win32 native api end
 
 #elif defined(GTK_BACKEND)
@@ -32,17 +41,6 @@
     typedef cairo_t   *HANDLE_DC;
     typedef GdkPixbuf   *HANDLE_BITMAP;
     typedef PangoFontDescription *HANDLE_FONT;
-
-    #define DT_TOP              0x00000001
-    #define DT_LEFT             0x00000002
-    #define DT_CENTER           0x00000004
-    #define DT_RIGHT            0x00000008
-    #define DT_VCENTER          0x00000010
-    #define DT_BOTTOM           0x00000020
-    #define DT_WORDBREAK        0x00000040
-    #define DT_SINGLELINE       0x00000080
-    #define DT_CALCRECT         0x00000400
-    #define DT_END_ELLIPSIS     0x00008000
 
     #define VK_DOWN         GDK_KEY_Down
     #define VK_UP           GDK_KEY_Up
@@ -77,15 +75,6 @@
     #define UI_IDC_RESIZEWE     "ew-resize"
     #define UI_IDC_RESIZENS     "ns-resize"
 
-    /*
-     * Key State Masks for Mouse Messages
-     */
-    #define MK_LBUTTON          0x0001
-    #define MK_RBUTTON          0x0002
-    #define MK_SHIFT            0x0004
-    #define MK_CONTROL          0x0008
-    #define MK_MBUTTON          0x0010
-
     #define UI_APP_QUIT()       gtk_main_quit()
     #define UI_DESTROY_WINDOW(wnd)                          \
        do{                                                  \
@@ -106,68 +95,102 @@
             gdk_event_free(event);                          \
        }while(0);
 
+    //定义窗口类型
+    #define UI_WNDSTYLE_FRAME      (GTK_WINDOW_TOPLEVEL)
+    #define UI_WNDSTYLE_CHILD      (GTK_WINDOW_POPUP)
+    #define UI_WNDSTYLE_DIALOG     (GTK_WINDOW_TOPLEVEL)
+
     // use gtk as backend
 #else
     #include <X11/Xlib.h>
     #include <X11/Xutil.h>
     #include <X11/Xft/Xft.h>
+    #include<X11/Xatom.h>
+    #include <locale.h>
+    #include <X11/cursorfont.h>
     #include <pango/pango-font.h>
+
     //x11 as the default backend
-    typedef struct _X11Window_s{
+    struct X11WindowHDC;
+    struct X11Bitmap;
+
+    typedef struct X11Window_s{
+        X11Window_s()
+            :display{nullptr},
+            screen{-1},
+            window{0},
+            visual{nullptr},
+            colormap{0},
+            hdc {nullptr},
+            depth{0},
+            x{0},
+            y{0},
+            width{0},
+            height{0}
+        {
+
+        }
+        ~X11Window_s(){
+
+        }
         Display     *display;
         int         screen;
         Window      window;
         Visual      *visual;
         Colormap    colormap;
-        Pixmap      offscreenPixmap;
+        X11WindowHDC   *hdc;
         int         depth;
         int         x;
         int         y;
         int         width;
         int         height;
-        GC          gc;
     }X11Window;
 
-    typedef X11Window   *HANDLE_WND;
-    typedef Drawable    HANDLE_DC;
-    typedef Pixmap      HANDLE_BITMAP;
+    typedef X11Window       *HANDLE_WND;
+    typedef X11WindowHDC    *HANDLE_DC;
+    typedef X11Bitmap       *HANDLE_BITMAP;
     typedef PangoFontDescription *HANDLE_FONT;
+
+    #define UI_APP_QUIT()       exit(0)
 
     #define UI_CLOSE_WINDOW(wnd, ret)                          \
        do{                                                  \
             exit(0);                          \
        }while(0);
+
+    #define VK_DOWN         XK_Down
+    #define VK_UP           XK_Up
+    #define VK_NEXT         XK_Next
+    #define VK_PRIOR        XK_Prior
+    #define VK_HOME         XK_Home
+    #define VK_END          XK_End
+    #define VK_SPACE        XK_space
+    #define VK_RETURN       XK_Return
+    #define VK_ESCAPE       XK_Escape
+    #define VK_LEFT         XK_Left
+    #define VK_RIGHT        XK_Right
+    #define VK_BACKSPACE    XK_BackSpace
+    #define VK_DELETE       XK_Delete
+    #define VK_F4           XK_F4
+    #define SB_LINEUP       Button4Mask
+    #define SB_LINEDOWN     Button5Mask
+
+    #define UILoadCursor(manager,CURSOR) \
+       do{                 \
+            exit(0);\
+       }while(0);
+
+    //定义鼠标光标
+    #define UI_IDC_ARROW        XC_arrow
+    #define UI_IDC_HAND         XC_hand1
+    #define UI_IDC_TEXT         XC_xterm
+    #define UI_IDC_RESIZEWE     XC_sb_h_double_arrow
+    #define UI_IDC_RESIZENS     XC_sb_v_double_arrow
+
+    //定义窗口类型
+    #define UI_WNDSTYLE_FRAME       0x01
+    #define UI_WNDSTYLE_CHILD       0x02
+    #define UI_WNDSTYLE_DIALOG      0x04
 #endif
-
-typedef struct tagTImageInfo
-{
-    HANDLE_BITMAP  hBitmap;
-    LPBYTE  pBits;
-    LPBYTE  pSrcBits;
-    int nX;
-    int nY;
-    bool bAlpha;
-    bool bUseHSL;
-    UIString sResType;
-    uint32_t mask;
-}TImageInfo;
-
-typedef struct tagTDrawInfo
-{
-    tagTDrawInfo();
-    explicit tagTDrawInfo(const char *lpsz);
-    void Clear();
-    UIString sDrawString;
-    UIString sImageName;
-    bool     bLoaded;
-    const TImageInfo  *pImageInfo;
-    RECT   rcDestOffset;
-    RECT   rcBmpPart;
-    RECT   rcScale9;
-    uint8_t  uFade;
-    bool   bHole;
-    bool   bTiledX;
-    bool   bTiledY;
-}TDrawInfo;
 
 #endif //DIRECTUI_UIBACKEND_H

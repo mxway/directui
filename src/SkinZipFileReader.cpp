@@ -3,7 +3,7 @@
 #include <unzip.h>
 #include <UIFileHelper.h>
 #ifdef WIN32
-#include "../os/win32/EncodingTransform.h"
+#include "../backend/win32/EncodingTransform.h"
 #include <iowin32.h>
 #endif
 

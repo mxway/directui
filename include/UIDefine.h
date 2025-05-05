@@ -3,6 +3,7 @@
 #include "UIString.h"
 #include <cstdint>
 #include <algorithm>
+#include "UIBackend.h"
 
 #ifdef WIN32
 #include <windows.h>
@@ -74,11 +75,76 @@ inline const char* CharPrev(const char *start, const char *current)
 }
 #endif
 
+#define DT_TOP              0x00000001
+#define DT_LEFT             0x00000002
+#define DT_CENTER           0x00000004
+#define DT_RIGHT            0x00000008
+#define DT_VCENTER          0x00000010
+#define DT_BOTTOM           0x00000020
+#define DT_WORDBREAK        0x00000040
+#define DT_SINGLELINE       0x00000080
+#define DT_CALCRECT         0x00000400
+#define DT_END_ELLIPSIS     0x00008000
+
+/*
+     * Key State Masks for Mouse Messages
+     */
+#define MK_LBUTTON          0x0001
+#define MK_RBUTTON          0x0002
+#define MK_SHIFT            0x0004
+#define MK_CONTROL          0x0008
+#define MK_MBUTTON          0x0010
+
 #define LOWORD(l)           ((uint16_t )(((unsigned long)(l)) & 0xffff))
 #define HIWORD(l)           ((uint16_t)((((unsigned long)(l)) >> 16) & 0xffff))
 //#define LOBYTE(w)           ((uint8_t)(((unsigned long)(w)) & 0xff))
 #define HIBYTE(w)           ((uint8_t)((((unsigned long)(w)) >> 8) & 0xff))
 #endif
+
+
+typedef struct tagTImageInfo
+{
+    tagTImageInfo()
+        :hBitmap{0},
+        pBits{nullptr},
+        pSrcBits{nullptr},
+        nX{0},
+        nY{0},
+        bAlpha{false},
+        bUseHSL{false},
+        sResType{""},
+        mask{0}
+    {
+
+    }
+    HANDLE_BITMAP  hBitmap;
+    LPBYTE  pBits;
+    LPBYTE  pSrcBits;
+    int nX;
+    int nY;
+    bool bAlpha;
+    bool bUseHSL;
+    UIString sResType;
+    uint32_t mask;
+}TImageInfo;
+
+typedef struct tagTDrawInfo
+{
+    tagTDrawInfo();
+    explicit tagTDrawInfo(const char *lpsz);
+    void Clear();
+    UIString sDrawString;
+    UIString sImageName;
+    bool     bLoaded;
+    const TImageInfo  *pImageInfo;
+    RECT   rcDestOffset;
+    RECT   rcBmpPart;
+    RECT   rcScale9;
+    uint8_t  uFade;
+    bool   bHole;
+    bool   bTiledX;
+    bool   bTiledY;
+}TDrawInfo;
 
 enum DuiSig
 {
@@ -304,6 +370,40 @@ typedef struct tagTEventUI
 #endif
 
 #define MAX_FONT_ID				30000
+
+#ifdef WIN32
+    #define DUI_WM_PAINT                WM_PAINT
+    #define DUI_WM_SIZE                 WM_SIZE
+    #define DUI_WM_MOUSEMOVE            WM_MOUSEMOVE
+    #define DUI_WM_MOUSEPRESS           0x10000001
+    #define DUI_WM_MOUSERELEASE         0x10000002
+    #define DUI_WM_MOUSEENTER           WM_MOUSEHOVER
+    #define DUI_WM_MOUSELEAVE           WM_MOUSELEAVE
+    #define DUI_WM_KEYPRESS             WM_KEYDOWN
+    #define DUI_WM_KEYRELEASE           WM_KEYUP
+    #define DUI_WM_CLOSE                WM_CLOSE
+    #define DUI_WM_TIMER                WM_TIMER
+    #define DUI_WM_MOUSEWHEEL           WM_MOUSEWHEEL
+    #define DUI_WM_DESTROY              WM_DESTROY
+    #define DUI_WM_CREATE               WM_CREATE
+    #define DUI_WM_KILLFOCUS            WM_KILLFOCUS
+#else
+    #define DUI_WM_PAINT                0x10000000
+    #define DUI_WM_SIZE                 0x10000001
+    #define DUI_WM_MOUSEMOVE            0x10000002
+    #define DUI_WM_MOUSEPRESS           0x10000003
+    #define DUI_WM_MOUSERELEASE         0x10000004
+    #define DUI_WM_MOUSEENTER           0x10000005
+    #define DUI_WM_MOUSELEAVE           0x10000006
+    #define DUI_WM_KEYPRESS             0x10000007
+    #define DUI_WM_KEYRELEASE           0x10000008
+    #define DUI_WM_CLOSE                0x10000009
+    #define DUI_WM_TIMER                0x1000000A
+    #define DUI_WM_MOUSEWHEEL           0x1000000B
+    #define DUI_WM_DESTROY              0x1000000C
+    #define DUI_WM_CREATE               0x1000000D
+    #define DUI_WM_KILLFOCUS            0x1000000E
+#endif
 
 
 #endif //DIRECTUI_UIDEFINE_H

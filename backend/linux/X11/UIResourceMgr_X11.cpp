@@ -1,13 +1,24 @@
-﻿#include <UIResourceMgr.h>
+#include "UIResourceMgr.h"
 #include <unistd.h>
 #include <libgen.h>
-#include "../../src/SkinFileReaderService.h"
+#include <pango/pango-font.h>
+#include <pango/pango-context.h>
+#include <pango/pangoxft.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+#include "DisplayInstance.h"
+#include "../../../src/SkinFileReaderService.h"
+#include "X11HDC.h"
+#include "X11Bitmap.h"
 
 UIFont *glbSystemDefaultGUIFont=nullptr;
 
 static void CreateSystemDefaultGUIFont()
 {
-    PangoContext *pangoContext = pango_font_map_create_context(pango_cairo_font_map_get_default());
+    PangoFontMap *font_map = pango_xft_get_font_map(DisplayInstance::GetInstance().GetDisplay(),
+                                                    DisplayInstance::GetInstance().GetScreenNumber());
+    PangoContext *pangoContext = pango_font_map_create_context(font_map);
+    //PangoContext *pangoContext = pango_font_map_create_context(pango_cairo_font_map_get_default());
     PangoFontDescription *fontDescription = pango_context_get_font_description(pangoContext);
     glbSystemDefaultGUIFont = new UIFont{
             UIString{pango_font_description_get_family(fontDescription)},
@@ -21,8 +32,8 @@ static void CreateSystemDefaultGUIFont()
 }
 
 UIResourceMgr::UIResourceMgr()
-    :m_defaultFont {nullptr},
-     m_skinType{ResourceSkinType_Unknown}
+        :m_defaultFont {nullptr},
+         m_skinType{ResourceSkinType_Unknown}
 {
     CreateSystemDefaultGUIFont();
     char exeFileName[4096] = {0};
@@ -41,7 +52,6 @@ UIResourceMgr &UIResourceMgr::GetInstance() {
 }
 
 void UIResourceMgr::Init(int argc, char **argv) {
-    gtk_init(&argc, &argv);
     m_argc = argc;
     for(int i=0;i<argc;i++){
         m_args.Add(new UIString{argv[i]});
@@ -49,29 +59,51 @@ void UIResourceMgr::Init(int argc, char **argv) {
 }
 
 bool UIResourceMgr::AddImage(const UIString &image) {
-
-    //UIString    strPath = m_strResDir + "/" + image;
     ByteArray resultData = SkinFileReaderFactory::GetSkinFileReader()->ReadFile(image);
     if(resultData.m_bufferSize == 0){
         return false;
     }
-    GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
-    gdk_pixbuf_loader_write(loader, resultData.m_buffer,resultData.m_bufferSize,nullptr);
-    gdk_pixbuf_loader_close(loader, nullptr);
-    GdkPixbuf *pixBuf = gdk_pixbuf_copy(gdk_pixbuf_loader_get_pixbuf(loader));
-    delete []resultData.m_buffer;
-    g_object_unref(loader);
-    if(pixBuf == nullptr){
-        return false;
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc *data = stbi_load_from_memory(resultData.m_buffer,resultData.m_bufferSize,&width,&height,&channels,4);
+    bool bAlphaChannel = false;
+    auto *imageBuffer = (unsigned char*)malloc(width*height*4);
+    for( int i = 0; i < width * height; i++ )
+    {
+        imageBuffer[i*4 + 3] = data[i*4 + 3];
+        if( imageBuffer[i*4 + 3] < 255 )
+        {
+            imageBuffer[i*4] = (uint8_t)(uint32_t(data[i*4 + 2])*data[i*4 + 3]/255);
+            imageBuffer[i*4 + 1] = (uint8_t)(uint32_t(data[i*4 + 1])*data[i*4 + 3]/255);
+            imageBuffer[i*4 + 2] = (uint8_t)(uint32_t(data[i*4])*data[i*4 + 3]/255);
+            bAlphaChannel = true;
+        }
+        else
+        {
+            imageBuffer[i*4] = data[i*4 + 2];
+            imageBuffer[i*4 + 1] = data[i*4 + 1];
+            imageBuffer[i*4 + 2] = data[i*4];
+        }
+
+        if( *(uint32_t *)(&imageBuffer[i*4]) == 0 ) {
+            imageBuffer[i*4] = 0;
+            imageBuffer[i*4 + 1] = 0;
+            imageBuffer[i*4 + 2] = 0;
+            imageBuffer[i*4 + 3] = 0;
+            bAlphaChannel = true;
+        }
     }
 
     auto  *imageInfo = new TImageInfo ;
-    imageInfo->hBitmap = pixBuf;
-    imageInfo->bAlpha = true;
-    imageInfo->nX = gdk_pixbuf_get_width(pixBuf);
-    imageInfo->nY = gdk_pixbuf_get_height(pixBuf);
+    imageInfo->hBitmap = new X11Bitmap;
+    imageInfo->hBitmap->buffer = imageBuffer;
+    imageInfo->hBitmap->bufferSize = width*height*4;
+    imageInfo->bAlpha = bAlphaChannel;
+    imageInfo->nX = width;
+    imageInfo->nY = height;
     if(!m_strImageMap.Insert(image, imageInfo)){
-        g_object_unref(imageInfo->hBitmap);
+        delete imageInfo->hBitmap;
         delete imageInfo;
         return false;
     }
@@ -89,9 +121,7 @@ TImageInfo *UIResourceMgr::GetImage(const UIString &image, bool bAdd) {
 }
 
 void UIResourceMgr::FreeImageInfo(TImageInfo *imageInfo) {
-    if(imageInfo->hBitmap){
-        g_object_unref(imageInfo->hBitmap);
-    }
+    delete imageInfo->hBitmap;
     delete imageInfo;
 }
 

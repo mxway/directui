@@ -23,7 +23,7 @@ distribution.
 
 #include "../include/tinyxml2.h"
 #ifdef WIN32
-#include "../os/win32/EncodingTransform.h"
+#include "../backend/win32/EncodingTransform.h"
 #endif
 
 #include <new>		// yes, this one new style header, is in the Android SDK.

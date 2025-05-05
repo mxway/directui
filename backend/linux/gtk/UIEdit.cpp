@@ -1,7 +1,7 @@
-﻿#include <UIEdit.h>
-#include <UIPaintManager.h>
-#include "../../include/UIRect.h"
-#include "../../include/UIResourceMgr.h"
+﻿#include "UIEdit.h"
+#include "UIPaintManager.h"
+#include "UIRect.h"
+#include "UIResourceMgr.h"
 
 static uint32_t GetNumberOfCharacters(const UIString &str)
 {

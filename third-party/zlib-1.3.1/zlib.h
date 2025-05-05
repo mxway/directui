@@ -811,7 +811,7 @@ ZEXTERN int ZEXPORT deflateSetHeader(z_streamp strm,
      deflateSetHeader() provides gzip header information for when a gzip
    stream is requested by deflateInit2().  deflateSetHeader() may be called
    after deflateInit2() or deflateReset() and before the first call of
-   deflate().  The text, time, os, extra field, name, and comment information
+   deflate().  The text, time, backend, extra field, name, and comment information
    in the provided gz_header structure are written to the gzip header (xflag is
    ignored -- the extra flags are set according to the compression level).  The
    caller must assure that, if not Z_NULL, name and comment are terminated with
@@ -822,7 +822,7 @@ ZEXTERN int ZEXPORT deflateSetHeader(z_streamp strm,
    gzip file" and give up.
 
      If deflateSetHeader is not used, the default gzip header has text false,
-   the time set to zero, and os set to the current operating system, with no
+   the time set to zero, and backend set to the current operating system, with no
    extra, name, or comment fields.  The gzip header is returned to the default
    state by deflateReset().
 
@@ -1045,7 +1045,7 @@ ZEXTERN int ZEXPORT inflateGetHeader(z_streamp strm,
    used to force inflate() to return immediately after header processing is
    complete and before any actual data is decompressed.
 
-     The text, time, xflags, and os fields are filled in with the gzip header
+     The text, time, xflags, and backend fields are filled in with the gzip header
    contents.  hcrc is set to true if there is a header CRC.  (The header CRC
    was valid if done is set to one.) If extra is not Z_NULL, then extra_max
    contains the maximum number of bytes to write to extra.  Once done is true,
