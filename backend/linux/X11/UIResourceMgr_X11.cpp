@@ -94,6 +94,7 @@ bool UIResourceMgr::AddImage(const UIString &image) {
             bAlphaChannel = true;
         }
     }
+    stbi_image_free(data);
 
     auto  *imageInfo = new TImageInfo ;
     imageInfo->hBitmap = new X11Bitmap;

@@ -5,15 +5,332 @@
 #include <cassert>
 #include <pango/pango-layout.h>
 #include <pango/pangoxft.h>
+#include "X11Bitmap.h"
 
 static int g_iFontID = MAX_FONT_ID;
+
+static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth, int dHeight,
+                       int sx, int sy, int sWidth, int sHeight, int alpha)
+{
+    XRenderPictFormat *pixmapFormat = XRenderFindStandardFormat(hdc->x11Window->display,PictStandardARGB32);
+    XRenderPictFormat *offscreenFormat = hdc->x11Window->depth==32?XRenderFindStandardFormat(hdc->x11Window->display,PictStandardARGB32)
+                                                                 : XRenderFindStandardFormat(hdc->x11Window->display,PictStandardRGB24);
+    Picture picture = XRenderCreatePicture(hdc->x11Window->display,pixmap,pixmapFormat,0,nullptr);
+    Picture offscreenPicture = XRenderCreatePicture(hdc->x11Window->display,hdc->drawablePixmap,offscreenFormat,0,nullptr);
+
+    XRenderComposite(hdc->x11Window->display,PictOpOver,picture,None,offscreenPicture,sx,sy,0,0,dx,dy,dWidth,dHeight);
+    XRenderFreePicture(hdc->x11Window->display,picture);
+    XRenderFreePicture(hdc->x11Window->display,offscreenPicture);
+
+#if 0
+    //XCreatePixmap(hdc->x11Window->display,hdc->drawablePixmap,)
+    GdkPixbuf *SubPixbuf;
+    GdkPixbuf *NewPixbuf;
+
+    //
+    // get the sub pixbuf from source pixbuf
+    //
+
+    SubPixbuf = gdk_pixbuf_new_subpixbuf(sPixbuf, sx, sy, sWidth, sHeight);
+    if (!SubPixbuf){
+        return false;
+    }
+
+    //
+    // create a new buffer for destination
+    //
+
+    NewPixbuf = gdk_pixbuf_new(gdk_pixbuf_get_colorspace(sPixbuf),
+                               gdk_pixbuf_get_has_alpha(sPixbuf), 8, dWidth, dHeight);
+    if (!NewPixbuf){
+        g_object_unref(SubPixbuf);
+        return false;
+    }
+
+    //
+    // scale the buffer for destination
+    //
+
+    gdk_pixbuf_scale(SubPixbuf, NewPixbuf, 0, 0, dWidth, dHeight, 0, 0,
+                     (double)dWidth/sWidth, (double)dHeight/sHeight, GDK_INTERP_BILINEAR);
+
+    //
+    // draw the pixbuf
+    //
+
+    gdk_cairo_set_source_pixbuf(cr, NewPixbuf, dx , dy);
+    cairo_paint_with_alpha(cr, (double)alpha/255);
+
+    //
+    // clean up
+    //
+
+    g_object_unref(NewPixbuf);
+    g_object_unref(SubPixbuf);
+#endif
+
+    return true;
+}
 
 void UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT &rc, const RECT &rcPaint,
                                const RECT &rcBmpPart, const RECT &rcScale9, bool alpha, uint8_t uFade, bool hole,
                                bool xtiled, bool ytiled) {
+    RECT rcDest;
+    RECT rcTemp;
+    Pixmap pixmap = XCreatePixmap(hDC->x11Window->display,hDC->drawablePixmap,rcBmpPart.right-rcBmpPart.left,
+                                  rcBmpPart.bottom-rcBmpPart.top,32);
+    GC pixmapGC = XCreateGC(hDC->x11Window->display,pixmap,0,nullptr);
+    auto *data = static_cast<unsigned char *>(malloc(hBitmap->bufferSize));
+    memcpy(data, hBitmap->buffer,hBitmap->bufferSize);
+    XImage *ximage = XCreateImage(hDC->x11Window->display, hDC->x11Window->visual,32, ZPixmap, 0,
+                 reinterpret_cast<char *>(data),
+                 rcBmpPart.right-rcBmpPart.left,rcBmpPart.bottom-rcBmpPart.top, 32, 0);
+    XPutImage(hDC->x11Window->display,pixmap,pixmapGC,ximage,0,0,0,0,rcBmpPart.right-rcBmpPart.left,rcBmpPart.bottom-rcBmpPart.top);
+    XFreeGC(hDC->x11Window->display,pixmapGC);
+    XDestroyImage(ximage);
+    //
+    // middle
+    //
 
+    if(!hole){
+        rcDest.left = rc.left + rcScale9.left;
+        rcDest.top = rc.top + rcScale9.top;
+        rcDest.right = rc.right - rc.left - rcScale9.left - rcScale9.right;
+        rcDest.bottom = rc.bottom - rc.top - rcScale9.top - rcScale9.bottom;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
+            if(!xtiled && !ytiled) {
+                rcDest.right -= rcDest.left;
+                rcDest.bottom -= rcDest.top;
+                AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                    rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, \
+                    rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right, \
+                    rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
+
+            }else if(xtiled && ytiled){
+                long lWidth = rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right;
+                long lHeight = rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom;
+                int iTimesX = (rcDest.right - rcDest.left + lWidth - 1) / lWidth;
+                int iTimesY = (rcDest.bottom - rcDest.top + lHeight - 1) / lHeight;
+                for(int j = 0; j < iTimesY; ++j){
+                    long lDestTop = rcDest.top + lHeight * j;
+                    long lDestBottom = rcDest.top + lHeight * (j + 1);
+                    long lDrawHeight = lHeight;
+                    if(lDestBottom > rcDest.bottom){
+                        lDrawHeight -= lDestBottom - rcDest.bottom;
+                        lDestBottom = rcDest.bottom;
+                    }
+                    for(int i = 0; i < iTimesX; ++i){
+                        long lDestLeft = rcDest.left + lWidth * i;
+                        long lDestRight = rcDest.left + lWidth * (i + 1);
+                        long lDrawWidth = lWidth;
+                        if( lDestRight > rcDest.right ) {
+                            lDrawWidth -= lDestRight - rcDest.right;
+                            lDestRight = rcDest.right;
+                        }
+                        AlphaBlend(hDC, pixmap, rcDest.left + lWidth * i, rcDest.top + lHeight * j,
+                                   lDestRight - lDestLeft, lDestBottom - lDestTop,
+                                   rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, lDrawWidth, lDrawHeight, uFade);
+                    }
+                }
+            }else if(xtiled){
+                long lWidth = rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right;
+                int iTimes = (rcDest.right - rcDest.left + lWidth - 1) / lWidth;
+                for(int i = 0; i < iTimes; ++i){
+                    long lDestLeft = rcDest.left + lWidth * i;
+                    long lDestRight = rcDest.left + lWidth * (i + 1);
+                    long lDrawWidth = lWidth;
+                    if(lDestRight > rcDest.right){
+                        lDrawWidth -= lDestRight - rcDest.right;
+                        lDestRight = rcDest.right;
+                    }
+                    AlphaBlend(hDC, pixmap, lDestLeft, rcDest.top, lDestRight - lDestLeft, rcDest.bottom,
+                               rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, \
+                        lDrawWidth, rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
+                }
+            }else{
+
+                //
+                // ytiled
+                //
+
+                long lHeight = rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom;
+                int iTimes = (rcDest.bottom - rcDest.top + lHeight - 1) / lHeight;
+                for(int i = 0; i < iTimes; ++i){
+                    long lDestTop = rcDest.top + lHeight * i;
+                    long lDestBottom = rcDest.top + lHeight * (i + 1);
+                    long lDrawHeight = lHeight;
+                    if(lDestBottom > rcDest.bottom){
+                        lDrawHeight -= lDestBottom - rcDest.bottom;
+                        lDestBottom = rcDest.bottom;
+                    }
+                    AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top + lHeight * i, rcDest.right, lDestBottom - lDestTop,
+                               rcBmpPart.left + rcScale9.left, rcBmpPart.top + rcScale9.top, \
+                        rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right, lDrawHeight, uFade);
+                }
+            }
+        }
+    }
+
+    //
+    // left-top
+    //
+
+    if(rcScale9.left > 0 && rcScale9.top > 0){
+        rcDest.left = rc.left;
+        rcDest.top = rc.top;
+        rcDest.right = rcScale9.left;
+        rcDest.bottom = rcScale9.top;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if( UIIntersectRect(&rcTemp, &rcPaint, &rcDest) ) {
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.left, rcBmpPart.top, rcScale9.left, rcScale9.top, uFade);
+        }
+    }
+
+    //
+    // top
+    //
+
+    if(rcScale9.top > 0){
+        rcDest.left = rc.left + rcScale9.left;
+        rcDest.top = rc.top;
+        rcDest.right = rc.right - rc.left - rcScale9.left - rcScale9.right;
+        rcDest.bottom = rcScale9.top;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)) {
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.left + rcScale9.left, rcBmpPart.top, rcBmpPart.right - rcBmpPart.left - \
+                rcScale9.left - rcScale9.right, rcScale9.top, uFade);
+        }
+    }
+
+    //
+    // right-top
+    //
+
+    if(rcScale9.right > 0 && rcScale9.top > 0){
+        rcDest.left = rc.right - rcScale9.right;
+        rcDest.top = rc.top;
+        rcDest.right = rcScale9.right;
+        rcDest.bottom = rcScale9.top;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.right - rcScale9.right, rcBmpPart.top, rcScale9.right, rcScale9.top, uFade);
+        }
+    }
+
+    //
+    // left
+    //
+
+    if(rcScale9.left > 0){
+        rcDest.left = rc.left;
+        rcDest.top = rc.top + rcScale9.top;
+        rcDest.right = rcScale9.left;
+        rcDest.bottom = rc.bottom - rc.top - rcScale9.top - rcScale9.bottom;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.left, rcBmpPart.top + rcScale9.top, rcScale9.left, rcBmpPart.bottom - \
+                rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
+        }
+    }
+
+    //
+    // right
+    //
+
+    if(rcScale9.right > 0){
+        rcDest.left = rc.right - rcScale9.right;
+        rcDest.top = rc.top + rcScale9.top;
+        rcDest.right = rcScale9.right;
+        rcDest.bottom = rc.bottom - rc.top - rcScale9.top - rcScale9.bottom;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.right - rcScale9.right, rcBmpPart.top + rcScale9.top, rcScale9.right, \
+                rcBmpPart.bottom - rcBmpPart.top - rcScale9.top - rcScale9.bottom, uFade);
+        }
+    }
+
+    //
+    // left-bottom
+    //
+
+    if(rcScale9.left > 0 && rcScale9.bottom > 0){
+        rcDest.left = rc.left;
+        rcDest.top = rc.bottom - rcScale9.bottom;
+        rcDest.right = rcScale9.left;
+        rcDest.bottom = rcScale9.bottom;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if( UIIntersectRect(&rcTemp, &rcPaint, &rcDest) ) {
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.left, rcBmpPart.bottom - rcScale9.bottom, rcScale9.left, rcScale9.bottom, uFade);
+        }
+    }
+
+    //
+    // bottom
+    //
+
+    if(rcScale9.bottom > 0){
+        rcDest.left = rc.left + rcScale9.left;
+        rcDest.top = rc.bottom - rcScale9.bottom;
+        rcDest.right = rc.right - rc.left - rcScale9.left - rcScale9.right;
+        rcDest.bottom = rcScale9.bottom;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.left + rcScale9.left, rcBmpPart.bottom - rcScale9.bottom, \
+                rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right, rcScale9.bottom, uFade);
+        }
+    }
+
+    //
+    // right-bottom
+    //
+
+    if(rcScale9.right > 0 && rcScale9.bottom > 0){
+        rcDest.left = rc.right - rcScale9.right;
+        rcDest.top = rc.bottom - rcScale9.bottom;
+        rcDest.right = rcScale9.right;
+        rcDest.bottom = rcScale9.bottom;
+        rcDest.right += rcDest.left;
+        rcDest.bottom += rcDest.top;
+        if(UIIntersectRect(&rcTemp, &rcPaint, &rcDest)){
+            rcDest.right -= rcDest.left;
+            rcDest.bottom -= rcDest.top;
+            AlphaBlend(hDC, pixmap, rcDest.left, rcDest.top, rcDest.right, rcDest.bottom, \
+                rcBmpPart.right - rcScale9.right, rcBmpPart.bottom - rcScale9.bottom, rcScale9.right, \
+                rcScale9.bottom, uFade);
+        }
+    }
+    XFreePixmap(hDC->x11Window->display,pixmap);
 }
-
 void UIRenderEngine::DrawColor(HANDLE_DC hDC, const RECT &rc, uint32_t color) {
     XSetForeground(hDC->x11Window->display,hDC->gc,color);
     XFillRectangle(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
