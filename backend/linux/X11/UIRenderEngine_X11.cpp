@@ -16,6 +16,12 @@ static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth,
     XRenderPictFormat *offscreenFormat = hdc->x11Window->depth==32?XRenderFindStandardFormat(hdc->x11Window->display,PictStandardARGB32)
                                                                  : XRenderFindStandardFormat(hdc->x11Window->display,PictStandardRGB24);
     Picture picture = XRenderCreatePicture(hdc->x11Window->display,pixmap,pixmapFormat,0,nullptr);
+    XTransform transform = {{
+                                    { XDoubleToFixed(sWidth*1.0/dWidth), XDoubleToFixed(0), XDoubleToFixed(0) },
+                                    { XDoubleToFixed(0), XDoubleToFixed(sHeight*1.0/dHeight), XDoubleToFixed(0) },
+                                    { XDoubleToFixed(0), XDoubleToFixed(0), XDoubleToFixed(1) }
+                            }};
+    XRenderSetPictureTransform(hdc->x11Window->display, picture, &transform);
     Picture offscreenPicture = XRenderCreatePicture(hdc->x11Window->display,hdc->drawablePixmap,offscreenFormat,0,nullptr);
 
     XRenderComposite(hdc->x11Window->display,PictOpOver,picture,None,offscreenPicture,sx,sy,0,0,dx,dy,dWidth,dHeight);
