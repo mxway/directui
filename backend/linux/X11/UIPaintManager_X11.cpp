@@ -139,6 +139,10 @@ void UIPaintManager::MessageLoop() {
 }
 
 void UIPaintManager::Invalidate(RECT &rcItem) {
+    UIRect uiRect{rcItem};
+    if(uiRect.IsEmpty()){
+        return;
+    }
     X11Window  *window = m_paintWnd;
     XEvent event;
     event.type = Expose;
@@ -167,8 +171,6 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 if(m_pRoot->IsUpdateNeeded()){
                     XExposeEvent *event = static_cast<XExposeEvent *>(wParam);
                     UIRect clientRect {event->x,event->y,event->x + event->width,event->y + event->height};
-                    /*UIRect clientRect(Allocation.x, Allocation.y, Allocation.x + Allocation.width,
-                                      Allocation.y + Allocation.height);*/
                     m_pRoot->SetPos(clientRect);
                 }else{
                     UIControl* pControl = nullptr;
@@ -194,7 +196,6 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             if(event != nullptr){
                 UIRect rect {event->x,event->y,event->x + event->width, event->y + event->height};
                 if(!rect.IsEmpty()){
-                    printf("Need real paint...\n");
                     HANDLE_DC hdc = CreateHDC(m_paintWnd,m_paintWnd->window,event->width,event->height);
                     m_pRoot->Paint(hdc,rect);
                     XCopyArea(m_paintWnd->display,hdc->drawablePixmap,m_paintWnd->window,m_paintWnd->hdc->gc,rect.left,rect.top,
@@ -208,7 +209,6 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
         }
         case DUI_WM_SIZE:
         {
-            printf("DUI_WM_SIZE......\n");
             XConfigureEvent *configureEvent = (XConfigureEvent*)wParam;
             if(m_pRoot!=nullptr){
                 m_pRoot->NeedUpdate();
