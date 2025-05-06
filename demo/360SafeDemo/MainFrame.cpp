@@ -20,7 +20,7 @@ void MainFrame::OnClick(TNotifyUI &msg) {
     if(msg.pSender->GetName() == "closebtn"){
         this->Close();
     }else if(msg.pSender->GetName()=="minbtn"){
-        //this->Minimize();
+        this->Minimize();
     }else if(msg.pSender->GetName()=="maxbtn"){
         this->Maximize();
     }

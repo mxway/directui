@@ -6,16 +6,22 @@
 #include <pango/pango-layout.h>
 #include <pango/pangoxft.h>
 #include "X11Bitmap.h"
+#include <UIPaintManager.h>
+#include <cctype>
 
 static int g_iFontID = MAX_FONT_ID;
 
 static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth, int dHeight,
                        int sx, int sy, int sWidth, int sHeight, int alpha)
 {
+    Pixmap subPixmap = XCreatePixmap(hdc->x11Window->display,pixmap,sWidth,sHeight,32);
+    GC gc = XCreateGC(hdc->x11Window->display,subPixmap,0,nullptr);
+    XCopyArea(hdc->x11Window->display,pixmap,subPixmap,gc,sx,sy,sWidth,sHeight,0,0);
+    XFreeGC(hdc->x11Window->display,gc);
     XRenderPictFormat *pixmapFormat = XRenderFindStandardFormat(hdc->x11Window->display,PictStandardARGB32);
     XRenderPictFormat *offscreenFormat = hdc->x11Window->depth==32?XRenderFindStandardFormat(hdc->x11Window->display,PictStandardARGB32)
                                                                  : XRenderFindStandardFormat(hdc->x11Window->display,PictStandardRGB24);
-    Picture picture = XRenderCreatePicture(hdc->x11Window->display,pixmap,pixmapFormat,0,nullptr);
+    Picture picture = XRenderCreatePicture(hdc->x11Window->display,subPixmap,pixmapFormat,0,nullptr);
     XTransform transform = {{
                                     { XDoubleToFixed(sWidth*1.0/dWidth), XDoubleToFixed(0), XDoubleToFixed(0) },
                                     { XDoubleToFixed(0), XDoubleToFixed(sHeight*1.0/dHeight), XDoubleToFixed(0) },
@@ -24,7 +30,8 @@ static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth,
     XRenderSetPictureTransform(hdc->x11Window->display, picture, &transform);
     Picture offscreenPicture = XRenderCreatePicture(hdc->x11Window->display,hdc->drawablePixmap,offscreenFormat,0,nullptr);
 
-    XRenderComposite(hdc->x11Window->display,PictOpOver,picture,None,offscreenPicture,sx,sy,0,0,dx,dy,dWidth,dHeight);
+    XRenderComposite(hdc->x11Window->display,PictOpOver,picture,None,offscreenPicture,0,0,0,0,dx,dy,dWidth,dHeight);
+    XFreePixmap(hdc->x11Window->display,subPixmap);
     XRenderFreePicture(hdc->x11Window->display,picture);
     XRenderFreePicture(hdc->x11Window->display,offscreenPicture);
 
@@ -506,7 +513,6 @@ static void GetTextExtentPoint(HANDLE_DC hDC, const char *text, int cchSize, UIF
     int width = 0;
     int height = 0;
     pango_layout_get_pixel_size(layout, &width, &height);
-    g_object_unref(layout);
     szText->cx = width;
     szText->cy = height;
     g_object_unref(layout);
@@ -551,6 +557,9 @@ static void TextOut(HANDLE_DC hDC, uint32_t textColor, long x, long y, const cha
     color.color.green = XDoubleToFixed( ((textColor>>8)&0xff)/256.0);
     color.color.blue = XDoubleToFixed( (textColor&0xff)/256.0);
     color.color.alpha = XDoubleToFixed( ((textColor>>24)&0xff)/256.0);
+    if (color.color.alpha == 0) {
+        color.color.alpha = 65535;
+    }
 
     XftDraw *draw = XftDrawCreate(hDC->x11Window->display, hDC->drawablePixmap,
                                   hDC->x11Window->visual,
@@ -588,7 +597,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     //   X Indent:         <x i>                where i = hor indent in pixels
     //   Y Indent:         <y i>                where i = ver indent in pixels
     //   Vertical align    <v x>				where x = top or x = center or x = bottom
-#if 0
+
     if( text.IsEmpty() || pManager == nullptr ) return;
     UIRect rect{rc};
     if( rect.IsEmpty() ) return;
@@ -600,11 +609,19 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     UIPtrArray aPIndentArray(10);
     UIPtrArray aVAlignArray(10);
 
-    RECT rcClip = { 0 };
+    XRectangle rcClip = { 0 };
+    XClipBox(hDC->currentRegion,&rcClip);
+
+    XRectangle  currentRectangle = {static_cast<short>(rc.left),
+        static_cast<short>(rc.top),
+        static_cast<ushort>(rc.right-rc.left),
+        static_cast<ushort>(rc.bottom-rc.top)};
+    Region region = XCreateRegion();
+    XUnionRectWithRegion(&currentRectangle,region,region);
+    Region oldRegion = GetRegion(hDC);
     if(bDraw){
-        cairo_save(hDC);
-        cairo_rectangle(hDC, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top);
-        cairo_clip(hDC);
+        XIntersectRegion(region,oldRegion,region);
+        SelectRegion(hDC,region);
     }
 
     const char *pstrText = text.GetData();
@@ -612,8 +629,6 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     uint32_t fontHeight = UIResourceMgr::GetInstance().GetFontHeight(iDefaultFont,hDC);
     //SelectFont(hDC, UIResourceMgr::GetInstance().GetFont(iDefaultFont));
     UIFont *selectedFont = UIResourceMgr::GetInstance().GetFont(iDefaultFont);
-    //HFONT hOldFont = (HFONT) ::SelectObject(hDC, UIResourceMgr::GetInstance().GetFont(iDefaultFont)->GetHandle());
-    //::SetBkMode(hDC, TRANSPARENT);
     uint32_t textColor = dwTextColor;
     //cairo_set_source_rgb(hDC, UIGetRValue(dwTextColor)/255.0,
     //                     UIGetGValue(dwTextColor)/255.0, UIGetBValue(dwTextColor)/255.0);
@@ -1455,7 +1470,7 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     }
 
     if(bDraw){
-        cairo_restore(hDC);
+        SelectRegion(hDC,oldRegion);
     }
-#endif
+    XDestroyRegion(region);
 }

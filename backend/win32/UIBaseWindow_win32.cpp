@@ -132,6 +132,10 @@ DuiResponseVal UIBaseWindow::ShowModal() {
     return (DuiResponseVal)(nRet);
 }
 
+void UIBaseWindow::Close(DuiResponseVal val) const {
+    ::PostMessageW(wnd, WM_CLOSE, WPARAM(val),0);
+}
+
 void UIBaseWindow::Maximize() {
     ::SendMessageW(this->GetWND(), WM_SYSCOMMAND, SC_MAXIMIZE,0);
 }

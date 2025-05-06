@@ -27,20 +27,18 @@ public:
 
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc);
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y, int cx,int cy);
-    void ShowWindow(bool bShow = true);
+    void ShowWindow(bool bShow = true) const;
     DuiResponseVal ShowModal();
-    HANDLE_WND GetWND();
-    void       SetWND(HANDLE_WND wndHandle);
-    void       Close(DuiResponseVal val=DUI_RESPONSE_OK){
-        UI_CLOSE_WINDOW(GetWND(),val);
-    }
-    void       CenterWindow();
+    HANDLE_WND GetWND() const;
+    void       SetWND(HANDLE_WND wndHandle) const;
+    void       Close(DuiResponseVal val=DUI_RESPONSE_OK) const;
+    void       CenterWindow() const;
 
-    void        Maximize();
+    void        Maximize() const;
 
-    void        Restore();
+    void        Restore() const;
 
-    void        Minimize();
+    void        Minimize() const;
 
     virtual long HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam);
     virtual void OnFinalMessage(HANDLE_WND hWnd);

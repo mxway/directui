@@ -12,21 +12,23 @@ public:
     {
         m_window = new X11Window;
     }
+    UIBaseWindowPrivate(const UIBaseWindowPrivate&)=delete;
+    UIBaseWindowPrivate &operator=(const UIBaseWindowPrivate&)=delete;
     ~UIBaseWindowPrivate(){
         if(m_window->hdc != nullptr){
             ReleaseHDC(m_window->hdc);
         }
         delete m_window;
     }
-    HANDLE_WND CreateWindow(HANDLE_WND parent,const UIString &className, uint32_t style,RECT rc);
-    void SetTitle(const char *title) ;
+    HANDLE_WND CreateWindow(HANDLE_WND parent,const UIString &className, uint32_t style, const RECT& rc);
+    void SetTitle(const char *title) const ;
 
     X11Window *m_window;
     X11Window *m_parent;
     DuiResponseVal  m_duiResponseVal;
 };
 
-HANDLE_WND UIBaseWindowPrivate::CreateWindow(HANDLE_WND parent, const UIString &className, uint32_t style, RECT rc) {
+HANDLE_WND UIBaseWindowPrivate::CreateWindow(HANDLE_WND parent, const UIString &className, uint32_t style, const RECT& rc) {
     m_parent = parent;
     setlocale(LC_ALL, "");
     if(DisplayInstance::GetInstance().GetDisplay() == nullptr){
@@ -62,17 +64,18 @@ HANDLE_WND UIBaseWindowPrivate::CreateWindow(HANDLE_WND parent, const UIString &
         XSetTransientForHint(m_window->display,m_window->window,parent->window);
     }
     XSelectInput(m_window->display, m_window->window, ExposureMask | KeyPressMask | KeyReleaseMask
-                                                      |ButtonReleaseMask | ButtonPressMask | ButtonMotionMask | StructureNotifyMask
+                                                      |ButtonReleaseMask | ButtonPressMask | PointerMotionMask | StructureNotifyMask
                                                       |EnterWindowMask |LeaveWindowMask);
+    XMapWindow(m_window->display,m_window->window);
     return m_window;
 }
 
-void UIBaseWindowPrivate::SetTitle(const char *title) {
+void UIBaseWindowPrivate::SetTitle(const char *title) const {
     Atom net_wm_name = XInternAtom(m_window->display, "_NET_WM_NAME", False);
     Atom utf8_string = XInternAtom(m_window->display, "UTF8_STRING", False);
 
     XChangeProperty(m_window->display, m_window->window, net_wm_name, utf8_string, 8,
-                    PropModeReplace, (unsigned char *)title, strlen(title));
+                    PropModeReplace, reinterpret_cast<const unsigned char*>(title), strlen(title));
 }
 
 UIBaseWindow::UIBaseWindow()
@@ -96,7 +99,7 @@ UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t styl
     return this->Create(parent, className,style, exStyle, rc);
 }
 
-void UIBaseWindow::ShowWindow(bool bShow) {
+void UIBaseWindow::ShowWindow(bool bShow) const {
     if(bShow){
         XMapWindow(m_data->m_window->display,m_data->m_window->window);
     }else{
@@ -109,7 +112,7 @@ static void set_modal_hint(Display *display, Window window) {
     Atom modal = XInternAtom(display, "_NET_WM_STATE_MODAL", False);
 
     XChangeProperty(display, window, wm_state, XA_ATOM, 32, PropModeReplace,
-                    (unsigned char *)&modal, 1);
+                    reinterpret_cast<unsigned char *>(&modal), 1);
 }
 
 DuiResponseVal UIBaseWindow::ShowModal(){
@@ -153,57 +156,115 @@ static void send_wm_state(Display *display, Window window, Atom state1, Atom sta
     // 将事件发送到根窗口
     XSendEvent(display, DefaultRootWindow(display), False,
                SubstructureRedirectMask | SubstructureNotifyMask,
-               (XEvent *)&event);
+               reinterpret_cast<XEvent *>(&event));
     XFlush(display); // 确保事件被发送
 }
 
-void UIBaseWindow::Maximize() {
-    Atom vert = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    Atom horz = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+bool IsWindowMaximized(Display *display, Window window) {
+    Atom net_wm_state = XInternAtom(display, "_NET_WM_STATE", True);
+    Atom max_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    Atom max_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+
+    Atom prop;
+    Atom *props = NULL;
+    //int num_items;
+    int actual_foramt = 0;
+    ulong num_items = 0;
+    ulong bytes_returned = 0;
+
+    if (XGetWindowProperty(display, window, net_wm_state, 0L, (~0L), False,
+                           AnyPropertyType, &prop, &actual_foramt, &num_items,
+                           &bytes_returned, (unsigned char **)&props) == Success) {
+        bool maximized = false;
+        for (int i = 0; i < num_items; ++i) {
+            if (props[i] == max_vert || props[i] == max_horz) {
+                maximized = true;
+                break;
+            }
+        }
+        if (props) {
+            XFree(props);
+        }
+        return maximized;
+    }
+    return false;
+}
+
+void UIBaseWindow::Maximize() const {
+    const Atom vert = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    const Atom horz = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    if (IsWindowMaximized(m_data->m_window->display, m_data->m_window->window)) {
+        send_wm_state(m_data->m_window->display, m_data->m_window->window,vert,horz,0);
+        return;
+    }
     send_wm_state(m_data->m_window->display, m_data->m_window->window, vert, horz, 1); // 1 表示 _NET_WM_STATE_ADD
 }
 
-void UIBaseWindow::Restore() {
-    Atom vert = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    Atom horz = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+void UIBaseWindow::Restore() const {
+    const Atom vert = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+    const Atom horz = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
     send_wm_state(m_data->m_window->display, m_data->m_window->window, vert, horz, 0); // 0 表示 _NET_WM_STATE_REMOVE
 }
 
-void UIBaseWindow::Minimize() {
-    Atom hidden_state = XInternAtom(m_data->m_window->display, "_NET_WM_STATE_HIDDEN", False);
-    send_wm_state(m_data->m_window->display,m_data->m_window->window,hidden_state,0,1);
+void UIBaseWindow::Minimize() const {
+    XIconifyWindow(m_data->m_window->display, m_data->m_window->window,m_data->m_window->screen);
 }
 
-HANDLE_WND UIBaseWindow::GetWND() {
+HANDLE_WND UIBaseWindow::GetWND() const {
     return m_data->m_window;
 }
 
-void UIBaseWindow::SetWND(HANDLE_WND wndHandle) {
+void UIBaseWindow::SetWND(HANDLE_WND wndHandle) const {
     m_data->m_window = wndHandle;
 }
 
-void UIBaseWindow::CenterWindow() {
+void UIBaseWindow::Close(DuiResponseVal val) const {
+    X11Window *wnd = this->GetWND();
+    Atom my_dialog_response = XInternAtom(wnd->display, "UI_WINDOW_CLOSE_RESPONSE", False);
+    XEvent event;
+    event.type = ClientMessage;
+    event.xclient.window = wnd->window;
+    event.xclient.message_type = my_dialog_response;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = val;
+    XSendEvent(wnd->display, wnd->window, False, NoEventMask, &event);
+    XFlush(wnd->display);
+    m_data->m_duiResponseVal = val;
+}
 
-    /*if(!GTK_IS_WINDOW(this->GetWND())){
-        return;
-    }
-    if(gtk_widget_get_parent_window(this->GetWND())){
-        RECT currentWndRect = GetWidgetRectangle(this->GetWND());
-        RECT parentWndRect = GetWidgetRectangle(gtk_widget_get_parent(this->GetWND()));
+
+void UIBaseWindow::CenterWindow() const {
+    if (this->m_data->m_parent != nullptr) {
+        RECT currentWndRect {m_data->m_window->x,
+        m_data->m_window->y,
+        m_data->m_window->x + m_data->m_window->width,
+        m_data->m_window->y + m_data->m_window->height};
+        RECT parentWndRect{m_data->m_parent->x,
+        m_data->m_parent->y,
+        m_data->m_parent->x + m_data->m_parent->width,
+        m_data->m_parent->y + m_data->m_parent->height
+        };
         long     dlgWidth    = currentWndRect.right - currentWndRect.left;
         long     dlgHeight   = currentWndRect.bottom - currentWndRect.top;
         long xLeft = (parentWndRect.left + parentWndRect.right) / 2 - dlgWidth / 2;
         long yTop = (parentWndRect.top + parentWndRect.bottom) / 2 - dlgHeight / 2;
-        gtk_window_move(GTK_WINDOW(this->GetWND()),(gint)xLeft, (gint)yTop);
-    }else{
-        gtk_window_set_position(GTK_WINDOW(this->GetWND()),GTK_WIN_POS_CENTER_ALWAYS);
-    }*/
+        XMoveWindow(m_data->m_window->display,m_data->m_window->window,xLeft,yTop);
+    }else {
+        RECT currentWndRect {m_data->m_window->x,
+        m_data->m_window->y,
+        m_data->m_window->x + m_data->m_window->width,
+        m_data->m_window->y + m_data->m_window->height};
+        RECT parentWndRect{0,0,DisplayInstance::GetInstance().GetWidth(),
+        DisplayInstance::GetInstance().GetHeight()};
+        long     dlgWidth    = currentWndRect.right - currentWndRect.left;
+        long     dlgHeight   = currentWndRect.bottom - currentWndRect.top;
+        long xLeft = (parentWndRect.left + parentWndRect.right) / 2 - dlgWidth / 2;
+        long yTop = (parentWndRect.top + parentWndRect.bottom) / 2 - dlgHeight / 2;
+        XMoveWindow(m_data->m_window->display,m_data->m_window->window,xLeft,yTop);
+    }
 }
 
 long UIBaseWindow::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
-    if(uMsg == DUI_WM_CREATE){
-        //this->
-    }
     return 0;
 }
 

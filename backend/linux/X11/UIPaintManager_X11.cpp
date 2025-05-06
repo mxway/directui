@@ -91,6 +91,7 @@ void UIPaintManager::MessageLoop() {
             case DestroyNotify:
                 DispatchMessage(event.xdestroywindow.window,DUI_WM_DESTROY,&event.xdestroywindow,nullptr);
                 if(UIBaseWindowObjects::GetInstance().GetWindowCount()==0){
+                    printf("注册窗口为0，退出程序");
                     glbContinueRunning = false;
                 }
                 break;
@@ -144,6 +145,9 @@ void UIPaintManager::Invalidate(RECT &rcItem) {
         return;
     }
     X11Window  *window = m_paintWnd;
+    if (window->window==0) {
+        return;
+    }
     XEvent event;
     event.type = Expose;
     event.xexpose.window = window->window;
@@ -165,6 +169,9 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
     switch(uMsg){
         case DUI_WM_PAINT:
         {
+            if (m_paintWnd->window==0) {
+                return true;
+            }
             if(m_bUpdateNeeded)
             {
                 m_bUpdateNeeded = false;
@@ -196,8 +203,7 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             if(event != nullptr){
                 UIRect rect {event->x,event->y,event->x + event->width, event->y + event->height};
                 if(!rect.IsEmpty()){
-                    printf("Update Rect x1 = %d y1 = %d x2 = %d y2 = %d\n",rect.left,rect.top,rect.right,rect.bottom);
-                    HANDLE_DC hdc = CreateHDC(m_paintWnd,m_paintWnd->window,event->width,event->height);
+                    HANDLE_DC hdc = CreateHDC(m_paintWnd,m_paintWnd->window,m_paintWnd->width,m_paintWnd->height);
                     m_pRoot->Paint(hdc,rect);
                     XCopyArea(m_paintWnd->display,hdc->drawablePixmap,m_paintWnd->window,m_paintWnd->hdc->gc,rect.left,rect.top,
                               rect.right-rect.left,rect.bottom-rect.top,rect.left,rect.top);

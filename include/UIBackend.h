@@ -18,7 +18,6 @@
 
     #define UI_APP_QUIT()           ::PostQuitMessage(0)
     #define UI_DESTROY_WINDOW(wnd)  ::DestroyWindow(wnd)
-    #define UI_CLOSE_WINDOW(wnd, ret) ::PostMessageW(wnd, WM_CLOSE, WPARAM(ret),0)
 
     #ifdef _MSC_VER
     #define strcasecmp _stricmp
@@ -85,16 +84,6 @@
             gdk_event_free(event);                          \
        }while(0);
 
-    #define UI_CLOSE_WINDOW(wnd, ret)                          \
-       do{                                                  \
-            GdkEvent  *event = gdk_event_new(GDK_DELETE);   \
-            event->any.window = GDK_WINDOW(g_object_ref(G_OBJECT(gtk_widget_get_window(wnd)))); \
-            event->any.send_event = true;                   \
-            event->configure.send_event = ret;               \
-            gtk_main_do_event(event);                       \
-            gdk_event_free(event);                          \
-       }while(0);
-
     //定义窗口类型
     #define UI_WNDSTYLE_FRAME      (GTK_WINDOW_TOPLEVEL)
     #define UI_WNDSTYLE_CHILD      (GTK_WINDOW_POPUP)
@@ -152,11 +141,6 @@
     typedef PangoFontDescription *HANDLE_FONT;
 
     #define UI_APP_QUIT()       exit(0)
-
-    #define UI_CLOSE_WINDOW(wnd, ret)                          \
-       do{                                                  \
-            exit(0);                          \
-       }while(0);
 
     #define VK_DOWN         XK_Down
     #define VK_UP           XK_Up

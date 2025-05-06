@@ -97,6 +97,9 @@ public:
     void        PaintThumb(HANDLE_DC hDC);
     void        PaintRail(HANDLE_DC hDC);
 
+private:
+    POINT       GetCursorPos()const;
+
 protected:
     enum{
         DEFAULT_SCROLLBAR_SIZE=16,

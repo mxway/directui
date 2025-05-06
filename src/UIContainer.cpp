@@ -7,6 +7,8 @@
 #include <UIRenderClip.h>
 #include <iostream>
 
+#include "UIResourceMgr.h"
+
 using namespace std;
 
 UIContainer::UIContainer()
@@ -767,8 +769,7 @@ void UIContainer::SetScrollPos(SIZE szPos) {
 void UIContainer::LineUp() {
     int cyLine = SCROLLBAR_LINESIZE;
     if( m_manager ) {
-        //TODO Default Font Height;
-        //cyLine = m_manager->GetDefaultFontInfo()->tm.tmHeight + 8;
+        cyLine = UIResourceMgr::GetInstance().GetDefaultFontHeight(m_manager->GetPaintDC()) + 8;
         if (m_pVerticalScrollBar && m_pVerticalScrollBar->GetScrollUnit() > 1)
             cyLine = m_pVerticalScrollBar->GetScrollUnit();
     }
@@ -781,8 +782,7 @@ void UIContainer::LineUp() {
 void UIContainer::LineDown() {
     int cyLine = SCROLLBAR_LINESIZE;
     if( m_manager ) {
-        //TODO Default Font Height;
-        //cyLine = m_manager->GetDefaultFontInfo()->tm.tmHeight + 8;
+        cyLine = UIResourceMgr::GetInstance().GetDefaultFontHeight(m_manager->GetPaintDC())+8;
         if (m_pVerticalScrollBar && m_pVerticalScrollBar->GetScrollUnit() > 1)
             cyLine = m_pVerticalScrollBar->GetScrollUnit();
     }

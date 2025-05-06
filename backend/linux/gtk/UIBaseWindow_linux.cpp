@@ -158,6 +158,15 @@ static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uin
     return widget;
 }
 
+void UIBaseWindow::Close(DuiResponseVal val) const {
+    GdkEvent  *event = gdk_event_new(GDK_DELETE);
+    event->any.window = GDK_WINDOW(g_object_ref(G_OBJECT(gtk_widget_get_window(wnd))));
+    event->any.send_event = true;
+    event->configure.send_event = ret;
+    gtk_main_do_event(event);
+    gdk_event_free(event);
+}
+
 HANDLE_WND
 UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc) {
     m_data->m_parentWidget = parent;
