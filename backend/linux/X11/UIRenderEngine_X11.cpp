@@ -28,53 +28,6 @@ static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth,
     XRenderFreePicture(hdc->x11Window->display,picture);
     XRenderFreePicture(hdc->x11Window->display,offscreenPicture);
 
-#if 0
-    //XCreatePixmap(hdc->x11Window->display,hdc->drawablePixmap,)
-    GdkPixbuf *SubPixbuf;
-    GdkPixbuf *NewPixbuf;
-
-    //
-    // get the sub pixbuf from source pixbuf
-    //
-
-    SubPixbuf = gdk_pixbuf_new_subpixbuf(sPixbuf, sx, sy, sWidth, sHeight);
-    if (!SubPixbuf){
-        return false;
-    }
-
-    //
-    // create a new buffer for destination
-    //
-
-    NewPixbuf = gdk_pixbuf_new(gdk_pixbuf_get_colorspace(sPixbuf),
-                               gdk_pixbuf_get_has_alpha(sPixbuf), 8, dWidth, dHeight);
-    if (!NewPixbuf){
-        g_object_unref(SubPixbuf);
-        return false;
-    }
-
-    //
-    // scale the buffer for destination
-    //
-
-    gdk_pixbuf_scale(SubPixbuf, NewPixbuf, 0, 0, dWidth, dHeight, 0, 0,
-                     (double)dWidth/sWidth, (double)dHeight/sHeight, GDK_INTERP_BILINEAR);
-
-    //
-    // draw the pixbuf
-    //
-
-    gdk_cairo_set_source_pixbuf(cr, NewPixbuf, dx , dy);
-    cairo_paint_with_alpha(cr, (double)alpha/255);
-
-    //
-    // clean up
-    //
-
-    g_object_unref(NewPixbuf);
-    g_object_unref(SubPixbuf);
-#endif
-
     return true;
 }
 
@@ -83,15 +36,15 @@ void UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT 
                                bool xtiled, bool ytiled) {
     RECT rcDest;
     RECT rcTemp;
-    Pixmap pixmap = XCreatePixmap(hDC->x11Window->display,hDC->drawablePixmap,rcBmpPart.right-rcBmpPart.left,
-                                  rcBmpPart.bottom-rcBmpPart.top,32);
+    Pixmap pixmap = XCreatePixmap(hDC->x11Window->display,hDC->drawablePixmap,hBitmap->width,
+                                  hBitmap->height,32);
     GC pixmapGC = XCreateGC(hDC->x11Window->display,pixmap,0,nullptr);
     auto *data = static_cast<unsigned char *>(malloc(hBitmap->bufferSize));
     memcpy(data, hBitmap->buffer,hBitmap->bufferSize);
     XImage *ximage = XCreateImage(hDC->x11Window->display, hDC->x11Window->visual,32, ZPixmap, 0,
                  reinterpret_cast<char *>(data),
-                 rcBmpPart.right-rcBmpPart.left,rcBmpPart.bottom-rcBmpPart.top, 32, 0);
-    XPutImage(hDC->x11Window->display,pixmap,pixmapGC,ximage,0,0,0,0,rcBmpPart.right-rcBmpPart.left,rcBmpPart.bottom-rcBmpPart.top);
+                 hBitmap->width,hBitmap->height, 32, 0);
+    XPutImage(hDC->x11Window->display,pixmap,pixmapGC,ximage,0,0,0,0,hBitmap->width,hBitmap->height);
     XFreeGC(hDC->x11Window->display,pixmapGC);
     XDestroyImage(ximage);
     //
@@ -359,9 +312,9 @@ void UIRenderEngine::DrawGradient(HANDLE_DC hDC, const RECT &rc, uint32_t dwFirs
     gradient.p1.y = XDoubleToFixed(rc.top);   // 起点 y 坐标
     if(bVertical){
         gradient.p2.x = XDoubleToFixed(rc.left);
-        gradient.p2.y = XDoubleToFixed(rc.bottom-rc.top);
+        gradient.p2.y = XDoubleToFixed(rc.bottom);
     }else{
-        gradient.p2.x = XDoubleToFixed(rc.right-rc.left);
+        gradient.p2.x = XDoubleToFixed(rc.right);
         gradient.p2.y = XDoubleToFixed(rc.top);
     }
 
@@ -374,7 +327,6 @@ void UIRenderEngine::DrawGradient(HANDLE_DC hDC, const RECT &rc, uint32_t dwFirs
     colors[0].blue = XDoubleToFixed( (dwFirst&0xff)/256.0);
     colors[0].alpha = XDoubleToFixed( ((dwFirst>>24) & 0xff)/256.0);
 
-    //蓝
     stops[1] = XDoubleToFixed(1.0);
     colors[1].red = XDoubleToFixed( ((dwSecond>>16) & 0xff)/256.0);
     colors[1].green = XDoubleToFixed( ((dwSecond>>8) & 0xff)/256.0);
@@ -385,7 +337,7 @@ void UIRenderEngine::DrawGradient(HANDLE_DC hDC, const RECT &rc, uint32_t dwFirs
     // 创建线性渐变图案
     Picture gradient_picture = XRenderCreateLinearGradient(hDC->x11Window->display, &gradient, stops, colors, 2);
     XRenderComposite(hDC->x11Window->display, PictOpSrc, gradient_picture, None, window_picture,
-                     0, 0, 0, 0, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top);
+                     rc.left, rc.top, 0, 0, rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top);
     XRenderFreePicture(hDC->x11Window->display, gradient_picture);
     XRenderFreePicture(hDC->x11Window->display, window_picture);
 }

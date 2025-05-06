@@ -100,6 +100,8 @@ bool UIResourceMgr::AddImage(const UIString &image) {
     imageInfo->hBitmap = new X11Bitmap;
     imageInfo->hBitmap->buffer = imageBuffer;
     imageInfo->hBitmap->bufferSize = width*height*4;
+    imageInfo->hBitmap->width = width;
+    imageInfo->hBitmap->height = height;
     imageInfo->bAlpha = bAlphaChannel;
     imageInfo->nX = width;
     imageInfo->nY = height;

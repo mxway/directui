@@ -196,6 +196,7 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             if(event != nullptr){
                 UIRect rect {event->x,event->y,event->x + event->width, event->y + event->height};
                 if(!rect.IsEmpty()){
+                    printf("Update Rect x1 = %d y1 = %d x2 = %d y2 = %d\n",rect.left,rect.top,rect.right,rect.bottom);
                     HANDLE_DC hdc = CreateHDC(m_paintWnd,m_paintWnd->window,event->width,event->height);
                     m_pRoot->Paint(hdc,rect);
                     XCopyArea(m_paintWnd->display,hdc->drawablePixmap,m_paintWnd->window,m_paintWnd->hdc->gc,rect.left,rect.top,
@@ -380,9 +381,9 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 SendEvent.pSender = pControl;
                 //SendEvent.wParam = MAKELPARAM(Event->direction == GDK_SCROLL_DOWN ? SB_LINEDOWN : SB_LINEUP, 0);
                 if(Event->button == Button4){
-                    SendEvent.wParam = (WPARAM)SB_LINEDOWN;
-                }else if(Event->button == Button5){
                     SendEvent.wParam = (WPARAM)SB_LINEUP;
+                }else if(Event->button == Button5){
+                    SendEvent.wParam = (WPARAM)SB_LINEDOWN;
                 }else{
                     return true;
                 }

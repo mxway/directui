@@ -177,7 +177,7 @@
 
     #define UILoadCursor(manager,CURSOR) \
        do{                 \
-            exit(0);\
+                ;\
        }while(0);
 
     //定义鼠标光标
