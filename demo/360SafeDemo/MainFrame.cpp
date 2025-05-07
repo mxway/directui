@@ -12,7 +12,7 @@ DUI_ON_MSGTYPE(DUI_MSGTYPE_SELECTCHANGED,MainFrame::OnItemSelected)
 DUI_END_MESSAGE_MAP()
 
 long MainFrame::OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    UI_APP_QUIT();
+    //UI_APP_QUIT();
     return UIWindowImpBase::OnDestroy(uMsg, wParam, lParam, bHandled);
 }
 

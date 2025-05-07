@@ -610,7 +610,14 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     UIPtrArray aVAlignArray(10);
 
     XRectangle rcClip = { 0 };
-    XClipBox(hDC->currentRegion,&rcClip);
+    if (hDC->currentRegion == nullptr) {
+        rcClip.x = hDC->x11Window->x;
+        rcClip.y = hDC->x11Window->y;
+        rcClip.width = hDC->x11Window->width;
+        rcClip.height = hDC->x11Window->height;
+    }else {
+        XClipBox(hDC->currentRegion,&rcClip);
+    }
 
     XRectangle  currentRectangle = {static_cast<short>(rc.left),
         static_cast<short>(rc.top),
@@ -620,7 +627,9 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
     XUnionRectWithRegion(&currentRectangle,region,region);
     Region oldRegion = GetRegion(hDC);
     if(bDraw){
-        XIntersectRegion(region,oldRegion,region);
+        if (oldRegion != nullptr) {
+            XIntersectRegion(region,oldRegion,region);
+        }
         SelectRegion(hDC,region);
     }
 

@@ -10,7 +10,7 @@ void LoginFrameWnd::Init() {
 
 void LoginFrameWnd::Notify(TNotifyUI &msg) {
     if( msg.sType == "click" ) {
-        if( msg.pSender->GetName() == "closebtn" ) { UI_APP_QUIT(); return; }
+        if( msg.pSender->GetName() == "closebtn" ) { Close(DUI_RESPONSE_CLOSE); return; }
         else if( msg.pSender->GetName() == "loginBtn" ) { Close(); return; }
     }
     else if( msg.sType == "itemselect" ) {

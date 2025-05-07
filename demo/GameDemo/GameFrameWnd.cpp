@@ -91,13 +91,9 @@ void GameFrameWnd::Notify(TNotifyUI &msg) {
         else if( name == "fontswitch" ) {
             LoginFrameWnd* pLoginFrame = new LoginFrameWnd();
             if( pLoginFrame == NULL ) { Close(); return; }
-            //pLoginFrame->Create(this->GetWND(), u8"LoginFrame", UI_WNDSTYLE_DIALOG, 0, 0, 0, 0, 0);
             pLoginFrame->Create(this->GetWND(),UIString{u8"LoginFrame"},UI_WNDSTYLE_DIALOG,0,0,0,600,400);
-            //pLoginFrame->SetIcon(IDI_ICON_DUILIB);
             pLoginFrame->CenterWindow();
-            //pLoginFrame->ShowWindow();
             pLoginFrame->ShowModal();
-
             delete pLoginFrame;
         }
         else if( name == "leaveBtn"  || name == "roomclosebtn" ) {
@@ -148,8 +144,6 @@ void GameFrameWnd::Notify(TNotifyUI &msg) {
                 auto* node = (UIGameList::Node*)msg.pSender->GetTag();
 
                 POINT pt = { 0 };
-//                ::GetCursorPos(&pt);
-//                ::ScreenToClient(m_pm.GetPaintWindow(), &pt);
                 pt = m_pm.GetMousePos();
                 pt.x -= msg.pSender->GetX();
                 SIZE sz = pGameList->GetExpanderSizeX(node);

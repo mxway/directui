@@ -1,5 +1,7 @@
 #include <UIPaintManager.h>
 #include <UIRect.h>
+
+#include "DispatchMessage.h"
 #include "DisplayInstance.h"
 #include "UIBaseWindowObjects.h"
 #include "X11HDC.h"
@@ -65,76 +67,21 @@ void UIPaintManager::Init(HANDLE_WND hWnd, const UIString &name) {
 
 bool glbContinueRunning = true;
 
-static void DispatchMessage(Window window, uint32_t msgType, WPARAM wParam,LPARAM lParam){
-    UIBaseWindow *baseWindow = UIBaseWindowObjects::GetInstance().GetObject(window);
-    if(baseWindow == nullptr){
-        return;
-    }
-    if(msgType == DUI_WM_DESTROY){
-        UIBaseWindowObjects::GetInstance().RemoveObject(window);
-    }
-    baseWindow->HandleMessage(msgType,wParam,lParam);
-}
-
 void UIPaintManager::MessageLoop() {
 
     XEvent event;
-    Atom wm_protocols = XInternAtom(DisplayInstance::GetInstance().GetDisplay(), "WM_PROTOCOLS", False);
-    Atom wm_delete_window = XInternAtom(DisplayInstance::GetInstance().GetDisplay(), "WM_DELETE_WINDOW", False);
 
     while (glbContinueRunning) {
         XNextEvent(DisplayInstance::GetInstance().GetDisplay(), &event);
         if(XFilterEvent(&event,None)){
             continue;
         }
-        switch(event.type){
-            case DestroyNotify:
-                DispatchMessage(event.xdestroywindow.window,DUI_WM_DESTROY,&event.xdestroywindow,nullptr);
-                if(UIBaseWindowObjects::GetInstance().GetWindowCount()==0){
-                    printf("注册窗口为0，退出程序");
-                    glbContinueRunning = false;
-                }
-                break;
-            case Expose:
-                DispatchMessage(event.xexpose.window,DUI_WM_PAINT,&event.xexpose,nullptr);
-                break;
-            case KeyPress:
-                DispatchMessage(event.xkey.window,DUI_WM_KEYPRESS, &event.xkey,nullptr);
-                break;
-            case KeyRelease:
-                DispatchMessage(event.xkey.window,DUI_WM_KEYRELEASE,&event.xkey,nullptr);
-                break;
-            case ButtonPress:
-                if(event.xbutton.button == 4 || event.xbutton.button==5){
-                    DispatchMessage(event.xbutton.window,DUI_WM_MOUSEWHEEL,&event.xbutton,nullptr);
-                }else{
-                    DispatchMessage(event.xbutton.window,DUI_WM_MOUSEPRESS,&event.xbutton,nullptr);
-                }
-                break;
-            case ButtonRelease:
-                DispatchMessage(event.xbutton.window,DUI_WM_MOUSERELEASE,&event.xbutton,nullptr);
-                break;
-            case MotionNotify:
-                DispatchMessage(event.xmotion.window,DUI_WM_MOUSEMOVE, &event.xmotion,nullptr);
-                break;
-            case EnterNotify:
-                DispatchMessage(event.xcrossing.window,DUI_WM_MOUSEENTER,&event.xcrossing,nullptr);
-                break;
-            case LeaveNotify:
-                DispatchMessage(event.xcrossing.window,DUI_WM_MOUSEENTER,&event.xcrossing,nullptr);
-                break;
-            case ConfigureNotify:
-                DispatchMessage(event.xconfigure.window,DUI_WM_SIZE, &event.xconfigure,nullptr);
-                break;
-            case ClientMessage:
-                if (event.xclient.message_type == wm_protocols &&
-                    event.xclient.data.l[0] == wm_delete_window) {
-                    DispatchMessage(event.xclient.window,DUI_WM_CLOSE,&event.xclient,nullptr);
-                }else if (event.xclient.message_type == XInternAtom(DisplayInstance::GetInstance().GetDisplay(), "UI_WINDOW_CLOSE_RESPONSE", False)) {
-                    DispatchMessage(event.xclient.window,DUI_WM_CLOSE,&event.xclient,nullptr);
-                }
-            default:
-                break;
+        DispatchMessage(event);
+        if (event.type == DestroyNotify) {
+            if(UIBaseWindowObjects::GetInstance().GetWindowCount()==0){
+                printf("注册窗口为0，退出程序\n");
+                glbContinueRunning = false;
+            }
         }
     }
 }
@@ -163,6 +110,9 @@ void UIPaintManager::Invalidate(RECT &rcItem) {
 HANDLE_DC UIPaintManager::GetPaintDC() {
     return m_paintWnd->hdc;
 }
+
+static unsigned long LastClickTime = 0;
+static const int DOUBLE_CLICK_INTERVAL = 300;
 
 bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam, long &lRes) {
     if( m_paintWnd == nullptr ) return false;
@@ -261,7 +211,12 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             int Type;
             if(event->button == Button1){
                 Type = UIEVENT_BUTTONDOWN;
-                // TODO double click
+                if (event->time - LastClickTime < DOUBLE_CLICK_INTERVAL) {
+                    LastClickTime = 0;
+                    Type = UIEVENT_DBLCLICK;
+                }else {
+                    LastClickTime = event->time;
+                }
             }else if(event->button == Button3){
                 Type = UIEVENT_RBUTTONDOWN;
             }else{
@@ -446,5 +401,7 @@ void UIPaintManager::RemoveAllTimers() {
 void UIPaintManager::SetInitSize(int cx, int cy) {
     m_szInitWindowSize.cx = cx;
     m_szInitWindowSize.cy = cy;
+    m_paintWnd->width = cx;
+    m_paintWnd->height = cy;
     XResizeWindow(m_paintWnd->display,m_paintWnd->window,cx,cy);
 }

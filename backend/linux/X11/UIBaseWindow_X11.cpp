@@ -1,4 +1,6 @@
 #include <UIBaseWindow.h>
+
+#include "DispatchMessage.h"
 #include "DisplayInstance.h"
 #include "UIBaseWindowObjects.h"
 #include "X11HDC.h"
@@ -107,21 +109,11 @@ void UIBaseWindow::ShowWindow(bool bShow) const {
     }
 }
 
-static void set_modal_hint(Display *display, Window window) {
-    Atom wm_state = XInternAtom(display, "_NET_WM_STATE", False);
-    Atom modal = XInternAtom(display, "_NET_WM_STATE_MODAL", False);
-
-    XChangeProperty(display, window, wm_state, XA_ATOM, 32, PropModeReplace,
-                    reinterpret_cast<unsigned char *>(&modal), 1);
-}
-
 DuiResponseVal UIBaseWindow::ShowModal(){
-    set_modal_hint(m_data->m_window->display,m_data->m_window->window);
     XMapWindow(m_data->m_window->display,m_data->m_window->window);
     XEvent event;
 
     Atom wm_delete_window = XInternAtom(m_data->m_window->display, "WM_DELETE_WINDOW", False);
-
     XSetWMProtocols(m_data->m_window->display, m_data->m_window->window, &wm_delete_window, 1);
     bool running = true;
     while (running) {
@@ -130,12 +122,15 @@ DuiResponseVal UIBaseWindow::ShowModal(){
         if(XFilterEvent(&event,None)){
             continue;
         }
+        if (m_data->m_window->window!=0 && event.xany.window != m_data->m_window->window) {
+            //模态对话框，仅处理当前窗口事件。
+            continue;
+        }
+        DispatchMessage(event);
         if(event.type == DestroyNotify){
             this->OnFinalMessage(m_data->m_window);
             running = false;
-            continue;
         }
-        //this->MessageHandler(event);
     }
     return m_data->m_duiResponseVal;
 }
@@ -235,31 +230,24 @@ void UIBaseWindow::Close(DuiResponseVal val) const {
 
 void UIBaseWindow::CenterWindow() const {
     if (this->m_data->m_parent != nullptr) {
-        RECT currentWndRect {m_data->m_window->x,
-        m_data->m_window->y,
-        m_data->m_window->x + m_data->m_window->width,
-        m_data->m_window->y + m_data->m_window->height};
         RECT parentWndRect{m_data->m_parent->x,
         m_data->m_parent->y,
         m_data->m_parent->x + m_data->m_parent->width,
         m_data->m_parent->y + m_data->m_parent->height
         };
-        long     dlgWidth    = currentWndRect.right - currentWndRect.left;
-        long     dlgHeight   = currentWndRect.bottom - currentWndRect.top;
-        long xLeft = (parentWndRect.left + parentWndRect.right) / 2 - dlgWidth / 2;
-        long yTop = (parentWndRect.top + parentWndRect.bottom) / 2 - dlgHeight / 2;
+
+        long xLeft = (parentWndRect.left + parentWndRect.right) / 2 - m_data->m_window->width / 2;
+        long yTop = (parentWndRect.top + parentWndRect.bottom) / 2 - m_data->m_window->height / 2;
         XMoveWindow(m_data->m_window->display,m_data->m_window->window,xLeft,yTop);
     }else {
-        RECT currentWndRect {m_data->m_window->x,
-        m_data->m_window->y,
-        m_data->m_window->x + m_data->m_window->width,
-        m_data->m_window->y + m_data->m_window->height};
-        RECT parentWndRect{0,0,DisplayInstance::GetInstance().GetWidth(),
-        DisplayInstance::GetInstance().GetHeight()};
-        long     dlgWidth    = currentWndRect.right - currentWndRect.left;
-        long     dlgHeight   = currentWndRect.bottom - currentWndRect.top;
-        long xLeft = (parentWndRect.left + parentWndRect.right) / 2 - dlgWidth / 2;
-        long yTop = (parentWndRect.top + parentWndRect.bottom) / 2 - dlgHeight / 2;
+        XWindowAttributes windowAttributes{0};
+        XGetWindowAttributes(m_data->m_window->display,RootWindow(m_data->m_window->display,m_data->m_window->screen),&windowAttributes);
+        RECT parentWndRect{windowAttributes.x,windowAttributes.y,
+            windowAttributes.x+windowAttributes.width,
+        windowAttributes.y+windowAttributes.height};
+
+        long xLeft = (parentWndRect.left + parentWndRect.right) / 2 - m_data->m_window->width / 2;
+        long yTop = (parentWndRect.top + parentWndRect.bottom) / 2 - m_data->m_window->height / 2;
         XMoveWindow(m_data->m_window->display,m_data->m_window->window,xLeft,yTop);
     }
 }

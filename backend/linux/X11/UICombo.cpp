@@ -4,6 +4,36 @@
 #include "DisplayInstance.h"
 #include "../../src/UIComboWnd.h"
 
+void get_workarea(Display *display,UIRect *workArea) {
+    // 获取根窗口
+    Window root = DefaultRootWindow(display);
+
+    // 获取支持_NET_WORKAREA属性的原子
+    Atom net_workarea = XInternAtom(display, "_NET_WORKAREA", False);
+
+    // 提出请求以获取_NET_WORKAREA属性值
+    Atom actual_type;
+    int actual_format;
+    unsigned long num_items, bytes_left;
+    long *workarea_data;
+
+    Status status = XGetWindowProperty(display, root, net_workarea, 0L, 4L, False,
+                                       XA_CARDINAL, &actual_type, &actual_format,
+                                       &num_items, &bytes_left, (unsigned char **)&workarea_data);
+
+    if (status == Success && actual_type == XA_CARDINAL && num_items >= 4) {
+        // workarea_data 包含 x, y, width, height 四个值
+        workArea->left = workarea_data[0];
+        workArea->top = workarea_data[1];
+        workArea->right = workarea_data[0] + workarea_data[2];
+        workArea->bottom = workarea_data[1] + workarea_data[3];
+    }
+
+    if (workarea_data) {
+        XFree(workarea_data); // 记得释放内存
+    }
+}
+
 void UIComboWnd::Init(UICombo *pOwner) {
     m_pOwner = pOwner;
     m_pLayout = nullptr;
@@ -43,7 +73,9 @@ void UIComboWnd::Init(UICombo *pOwner) {
     GdkMonitor *monitor = gdk_display_get_monitor_at_window(display, gtk_widget_get_window(pOwner->GetManager()->GetPaintWindow()));
     GdkRectangle    workRectangle{0};
     gdk_monitor_get_workarea(monitor, &workRectangle);*/
-    UIRect rcWork{0, 0, DisplayInstance::GetInstance().GetWidth(), DisplayInstance::GetInstance().GetHeight()};
+    UIRect rcWork{0,0,0,0};
+    get_workarea(wnd->display,&rcWork);
+    //UIRect rcWork{0, 0, DisplayInstance::GetInstance().GetWidth(), DisplayInstance::GetInstance().GetHeight()};
     //UIRect rcWork{workRectangle};
     if( rc.bottom > rcWork.bottom ) {
         rc.left = rcOwner.left;
@@ -75,37 +107,25 @@ void UIComboWnd::Init(UICombo *pOwner) {
 
 long UIComboWnd::HandleMessage_Internal(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
 if( uMsg == DUI_WM_MOUSEPRESS ) {
-        //else if( uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONDBLCLK ) {
-        //POINT pt = { 0 };
         auto *Event = (XButtonEvent*)wParam;
 
         POINT pt = {(long)Event->x, (long)Event->y};
-        //m_ptLastMousePos = pt;
-        //::GetCursorPos(&pt);
-        //::ScreenToClient(m_pm.GetPaintWindow(), &pt);
         UIControl* pControl = m_pm.FindControl(pt);
         if( pControl && pControl->GetClass() == DUI_CTR_SCROLLBAR ) {
             m_scrollbarClicked = true;
         }
     }
     else if( uMsg == DUI_WM_MOUSERELEASE ) {
-        //else if( uMsg == WM_LBUTTONUP ) {
         if (m_scrollbarClicked) {
             m_scrollbarClicked = false;
         }
         else {
-            //POINT pt = { 0 };
-            //::GetCursorPos(&pt);
-            //::ScreenToClient(m_pm.GetPaintWindow(), &pt);
             auto *Event = (XButtonEvent*)wParam;
             POINT pt = {(long)Event->x, (long)Event->y};
             UIControl* pControl = m_pm.FindControl(pt);
             if( pControl && pControl->GetClass() != DUI_CTR_SCROLLBAR ) {
                 //TODO  Send Focus out event
                 this->Close();
-                //g_signal_emit_by_name(G_OBJECT(this->GetWND()),"focus-out-event");
-                //::PostMessageW(this->GetWND(),WM_KILLFOCUS,0,0);
-                //PostMessage(WM_KILLFOCUS);
             }
         }
     }
@@ -120,13 +140,6 @@ if( uMsg == DUI_WM_MOUSEPRESS ) {
             case VK_RETURN:
                 this->Close();
                 break;
-                // FALL THROUGH...
-            //case VK_RETURN:
-                //this->Close();
-                //g_signal_emit_by_name(G_OBJECT(this->GetWND()),"delete-event");
-                //::PostMessageW(this->GetWND(), WM_KILLFOCUS, 0, 0);
-                //g_signal_emit_by_name(G_OBJECT(this->GetWND()),"focus-out-event");
-                //PostMessage(WM_KILLFOCUS);
 
             default:
                 TEventUI event;
@@ -139,7 +152,7 @@ if( uMsg == DUI_WM_MOUSEPRESS ) {
     }
     else if( uMsg == DUI_WM_MOUSEWHEEL ) {
         auto *EventScroll = (XButtonEvent *)wParam;
-        int zDelta = (int) (short) HIWORD(wParam);
+        //int zDelta = (int) (short) HIWORD(wParam);
         TEventUI event = { 0 };
         event.Type = UIEVENT_SCROLLWHEEL;
         if(EventScroll->button == Button4){
@@ -158,12 +171,6 @@ if( uMsg == DUI_WM_MOUSEPRESS ) {
     else if( uMsg == DUI_WM_KILLFOCUS ) {
         this->Close();
         //TODO delete EVENT?
-        /*GtkWidget *focusWidget = gtk_window_get_focus(GTK_WINDOW(this->GetWND()));
-        if(focusWidget == nullptr){
-            // top window及子 widget都没有获得焦点。发出window关闭信号
-            g_signal_emit_by_name(G_OBJECT(this->GetWND()),"delete-event");
-            return 1;
-        }*/
     }
     return 0;
 }

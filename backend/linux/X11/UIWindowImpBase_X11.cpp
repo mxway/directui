@@ -109,7 +109,6 @@ long UIWindowImpBase::OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool 
 }
 
 long UIWindowImpBase::OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
-    printf("OnDestroy.....\n");
     return 0;
 }
 
