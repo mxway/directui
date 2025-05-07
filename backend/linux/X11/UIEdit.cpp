@@ -21,6 +21,22 @@ static uint32_t GetNumberOfCharacters(const UIString &str)
     return result;
 }
 
+struct ImmContext {
+    XIC m_xic;
+    XIM m_xim;
+};
+
+void set_preedit_position(XIC ic, int x, int y) {
+    XPoint point = {static_cast<short>(x),static_cast<short>(y)};
+    XVaNestedList preedit_attr = XVaCreateNestedList(0,
+                                                     XNSpotLocation, &point,
+                                                     NULL);
+    if (preedit_attr) {
+        XSetICValues(ic, XNPreeditAttributes, preedit_attr, NULL);
+        XFree(preedit_attr);
+    }
+}
+
 struct UIEditInternal
 {
     explicit UIEditInternal(UIEdit *uiEdit);
@@ -28,7 +44,7 @@ struct UIEditInternal
     void    DoEvent(TEventUI &event);
     void    CreateImmContext(int initX, int initY);
     void    ReleaseImmContext();
-    void    OnImmCommit(const gchar *str);
+    void    OnImmCommit(const char *str);
     void    CalculateCharactersWidth();
     void    CalculateCurrentEditPositionFromMousePoint(POINT ptMouse);
     void    DrawCaret();
@@ -39,8 +55,7 @@ struct UIEditInternal
     void   InsertNewCharactersWidth(const char *insertString);
 
 private:
-    //GtkIMContext    *m_imContext;
-    //gulong          m_handlerId;
+    struct ImmContext   *m_imContext;
     UIEdit          *m_uiEdit;
     string          m_text;
     UIPtrArray      m_textWidthList;
@@ -56,7 +71,8 @@ private:
 };
 
 UIEditInternal::UIEditInternal(UIEdit *uiEdit)
-        :m_uiEdit{uiEdit},
+        :m_imContext{nullptr},
+         m_uiEdit{uiEdit},
          m_text{uiEdit->GetText().GetData()},
          m_currentEditPos{-1}
 {
@@ -75,26 +91,43 @@ void UIEditInternal::DoEvent(TEventUI &event) {
         this->CalculateCharactersWidth();
         this->CalculateCurrentEditPositionFromMousePoint(event.ptMouse);
     }
-    if(event.Type == UIEVENT_KEYDOWN){
-
-    }
 }
 
 void UIEditInternal::CreateImmContext(int initX, int initY) {
-
+    if (m_imContext == nullptr) {
+        m_imContext = new struct ImmContext;
+        m_imContext->m_xim = nullptr;
+        m_imContext->m_xic = nullptr;
+        XSetLocaleModifiers("");
+        m_imContext->m_xim = XOpenIM(m_uiEdit->GetManager()->GetPaintWindow()->display,0,0,0);
+        m_imContext->m_xic = XCreateIC(m_imContext->m_xim,
+            XNInputStyle,XIMPreeditNothing|XIMStatusNothing,
+            XNClientWindow,m_uiEdit->GetManager()->GetPaintWindow()->window,
+            XNFocusWindow,m_uiEdit->GetManager()->GetPaintWindow()->window,nullptr);
+    }
+    if (m_imContext->m_xic!=nullptr) {
+        XSetICFocus(m_imContext->m_xic);
+        set_preedit_position(m_imContext->m_xic,initX,initY);
+    }
 }
 
 void UIEditInternal::ReleaseImmContext() {
-    /*if(m_imContext!=nullptr){
-        g_signal_handler_disconnect(m_imContext,m_handlerId);
-        g_clear_object(&m_imContext);
+    if (m_imContext != nullptr) {
+        if (m_imContext->m_xic != nullptr) {
+            //XUnsetICFocus(m_imContext->m_xic);
+            XDestroyIC(m_imContext->m_xic);
+        }
+        if (m_imContext->m_xim != nullptr) {
+            XCloseIM(m_imContext->m_xim);
+        }
+        delete m_imContext;
         m_imContext = nullptr;
-    }*/
+    }
     m_currentEditPos = -1;
     m_uiEdit->Invalidate();
 }
 
-void UIEditInternal::OnImmCommit(const gchar *str) {
+void UIEditInternal::OnImmCommit(const char *str) {
     uint32_t totalBytes = this->GetCharactersBytes(m_currentEditPos);
     m_text.insert(totalBytes, str);
     this->InsertNewCharactersWidth(str);
@@ -154,7 +187,6 @@ void UIEditInternal::CalculatePasswordCharactersWidth() {
     int width = 0;
     int height = 0;
     pango_layout_get_pixel_size(layout, &width, &height);
-    g_object_unref(layout);
     uint32_t numberOfCharacters = m_uiEdit->GetCharNumber();
     while(numberOfCharacters--){
         m_textWidthList.Add((LPVOID)(long)width);
@@ -176,6 +208,13 @@ void UIEditInternal::CalculateCurrentEditPositionFromMousePoint(POINT pt) {
         }
     }
 }
+
+const int CURSOR_WIDTH = 6;
+const int CURSOR_HEIGHT=24;
+
+static unsigned char cursoricon_bits [ ] = {
+    0x3f , 0x03f , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c ,
+    0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x03f , 0x03f } ;
 
 void UIEditInternal::DrawCaret() {
 #if 0
@@ -207,7 +246,95 @@ void UIEditInternal::DrawCaret() {
 #endif
 }
 
+static bool IsPrintableChar(KeySym keysym)
+{
+    return (keysym>=0x20 && keysym<127) || (keysym>=XK_KP_Multiply && keysym<=XK_KP_9);
+}
+
 void UIEditInternal::OnKeyDown(TEventUI &event) {
+    Status status;
+    KeySym keysym = NoSymbol;
+    char    text[128] = {0};
+    XKeyEvent *keyEvent = static_cast<XKeyEvent*>(event.wParam);
+    Xutf8LookupString(m_imContext->m_xic,keyEvent,text,sizeof(text)-1,&keysym,&status);
+    if (status == XBufferOverflow) {
+        return;
+    }
+    if (status == XLookupChars) {
+        this->OnImmCommit(text);
+        return;
+    }
+    if (status == XLookupBoth) {
+        if( (!(keyEvent->state & ControlMask)) && IsPrintableChar(keysym))
+        {
+            this->OnImmCommit(text);
+            return;
+        }
+        if (keysym == VK_BACKSPACE) {
+            if(m_currentEditPos == 0){
+                return;
+            }
+            uint32_t totalBytes = GetCharactersBytes(m_currentEditPos);
+            const char *p = m_text.c_str() + totalBytes;
+            const char *charStart = CharPrev(m_text.c_str(),p);
+            m_text.erase(charStart - m_text.c_str(), p-charStart);
+            m_textWidthList.Remove(m_currentEditPos);
+            m_currentEditPos--;
+            m_uiEdit->SetText(UIString{m_text.c_str()});
+        }
+        if(keysym == VK_DELETE){
+            if(m_currentEditPos == m_textWidthList.GetSize()){
+                return;
+            }
+            int totalBytes = GetCharactersBytes(m_currentEditPos);
+            const char *p = m_text.c_str() + totalBytes;
+            const char *nextChar = CharNext(p);
+            m_text.erase(p - m_text.c_str(), nextChar-p);
+            m_textWidthList.Remove(m_currentEditPos+1);
+            m_uiEdit->SetText(UIString{m_text.c_str()});
+        }
+    }
+    if (status == XLookupKeySym) {
+        if(keysym == VK_HOME || keysym == XK_KP_Home){
+            m_currentEditPos = 0;
+            m_uiEdit->Invalidate();
+            return;
+        }
+        if(keysym == VK_END || keysym == XK_KP_End){
+            m_currentEditPos = m_textWidthList.GetSize()-1;
+            m_uiEdit->Invalidate();
+            return;
+        }
+        if(keysym == VK_LEFT || keysym == XK_KP_End){
+            if(m_currentEditPos != 0){
+                m_currentEditPos--;
+                m_uiEdit->Invalidate();
+            }
+            return;
+        }
+        if(keysym == VK_RIGHT || keysym == XK_KP_Right){
+            if(m_currentEditPos >= m_textWidthList.GetSize()-1){
+                m_currentEditPos = m_textWidthList.GetSize()-1;
+                return;
+            }else{
+                m_currentEditPos += 1;
+            }
+            m_uiEdit->Invalidate();
+            return;
+        }
+        if (keysym == XK_KP_Delete) {
+            if(m_currentEditPos == m_textWidthList.GetSize()){
+                return;
+            }
+            int totalBytes = GetCharactersBytes(m_currentEditPos);
+            const char *p = m_text.c_str() + totalBytes;
+            const char *nextChar = CharNext(p);
+            m_text.erase(p - m_text.c_str(), nextChar-p);
+            m_textWidthList.Remove(m_currentEditPos+1);
+            m_uiEdit->SetText(UIString{m_text.c_str()});
+        }
+    }
+#if 0
     auto  *eventKey = (XKeyEvent*)event.wParam;
     if(eventKey == nullptr){
         return;
@@ -265,6 +392,7 @@ void UIEditInternal::OnKeyDown(TEventUI &event) {
         m_uiEdit->SetText(UIString{m_text.c_str()});
         return;
     }
+#endif
 }
 
 int UIEditInternal::GetCharactersBytes(int numberOfChars) {
