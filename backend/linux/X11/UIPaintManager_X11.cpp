@@ -385,7 +385,6 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
 
                 SendEvent.Type = UIEVENT_SCROLLWHEEL;
                 SendEvent.pSender = pControl;
-                //SendEvent.wParam = MAKELPARAM(Event->direction == GDK_SCROLL_DOWN ? SB_LINEDOWN : SB_LINEUP, 0);
                 if(Event->button == Button4){
                     SendEvent.wParam = (WPARAM)SB_LINEUP;
                 }else if(Event->button == Button5){
