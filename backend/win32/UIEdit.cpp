@@ -336,6 +336,6 @@ void UIEditInternal::ShowCaretAndSetImmPosition() {
     ::ImmSetCompositionWindow(m_hIMC, &composition);
 }
 
-void UIEdit::DrawCaret() {
+void UIEdit::DrawCaret(HANDLE_DC hDC) {
     
 }

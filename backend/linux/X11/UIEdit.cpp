@@ -47,7 +47,7 @@ struct UIEditInternal
     void    OnImmCommit(const char *str);
     void    CalculateCharactersWidth();
     void    CalculateCurrentEditPositionFromMousePoint(POINT ptMouse);
-    void    DrawCaret();
+    void    DrawCaret(HANDLE_DC hDC);
     void    OnKeyDown(TEventUI &event);
     //
     int     GetCharactersBytes(int numberOfChars);
@@ -60,7 +60,9 @@ private:
     string          m_text;
     UIPtrArray      m_textWidthList;
     int             m_currentEditPos;
+    Pixmap          m_cursor;
 
+private:
     void CalculatePasswordCharactersWidth();
 
     void CalculateNormalCharactersWidth();
@@ -74,13 +76,17 @@ UIEditInternal::UIEditInternal(UIEdit *uiEdit)
         :m_imContext{nullptr},
          m_uiEdit{uiEdit},
          m_text{uiEdit->GetText().GetData()},
-         m_currentEditPos{-1}
+         m_currentEditPos{-1},
+         m_cursor{0}
 {
 
 }
 
 UIEditInternal::~UIEditInternal() {
     this->ReleaseImmContext();
+    if (m_cursor != 0) {
+        XFreePixmap(m_uiEdit->GetManager()->GetPaintWindow()->display,m_cursor);
+    }
 }
 
 void UIEditInternal::DoEvent(TEventUI &event) {
@@ -216,34 +222,29 @@ static unsigned char cursoricon_bits [ ] = {
     0x3f , 0x03f , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c ,
     0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x03f , 0x03f } ;
 
-void UIEditInternal::DrawCaret() {
-#if 0
+void UIEditInternal::DrawCaret(HANDLE_DC hDC) {
     if(m_currentEditPos < 0){
         return;
     }
     RECT rcItem{m_uiEdit->GetPos()};
-    GdkRectangle rect = {0};
+    XRectangle rect = {0};
     int totalWidth = 0;
     for(int i=0;i<=m_currentEditPos && i<m_textWidthList.GetSize();i++){
         totalWidth += (int)(long)m_textWidthList.GetAt(i);
     }
     RECT rcTextPadding = m_uiEdit->GetTextPadding();
     rect.x = totalWidth + rcItem.left + rcTextPadding.left;
-    rect.y = rcItem.top + rcTextPadding.top + 4;
+    rect.y = rcItem.top + rcTextPadding.top + 2;
     rect.width = 1;
     rect.height = rcItem.bottom - rcItem.top;
-#if GTK_CHECK_VERSION(3,4,0)
-    GtkStyleContext *styleContext = gtk_widget_get_style_context(m_uiEdit->GetManager()->GetPaintWindow());
-    PangoLayout *layout = pango_cairo_create_layout(m_uiEdit->GetManager()->GetPaintDC());
-    UIFont *font = UIResourceMgr::GetInstance().GetFont(m_uiEdit->GetFont());
-    pango_layout_set_font_description(layout, font->GetHandle());
-    gtk_render_insertion_cursor(styleContext,m_uiEdit->GetManager()->GetPaintDC(),rect.x,rect.y,layout,0,PANGO_DIRECTION_LTR);
-    g_object_unref(layout);
-#else
-    gtk_draw_insertion_cursor(m_uiEdit->GetManager()->GetPaintWindow(),m_uiEdit->GetManager()->GetPaintDC(),
-                                  &rect,true,GTK_TEXT_DIR_LTR,false );
-#endif
-#endif
+    X11Window *window = m_uiEdit->GetManager()->GetPaintWindow();
+    if (m_cursor == 0) {
+        m_cursor = XCreatePixmapFromBitmapData( window->display , window->window ,
+                reinterpret_cast<char *>(cursoricon_bits), CURSOR_WIDTH , CURSOR_HEIGHT ,
+                0xff000000 , WhitePixel ( window->display , window->screen ) ,
+                window->depth ) ;
+    }
+    XCopyArea(window->display,m_cursor,hDC->drawablePixmap,hDC->gc,0,0,CURSOR_WIDTH,CURSOR_HEIGHT,rect.x,rect.y);
 }
 
 static bool IsPrintableChar(KeySym keysym)
@@ -546,6 +547,6 @@ void UIEdit::DoEvent(TEventUI &event) {
     UILabel::DoEvent(event);
 }
 
-void UIEdit::DrawCaret() {
-    m_internalImpl->DrawCaret();
+void UIEdit::DrawCaret(HANDLE_DC hDC) {
+    m_internalImpl->DrawCaret(hDC);
 }

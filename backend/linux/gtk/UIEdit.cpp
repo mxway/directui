@@ -408,13 +408,12 @@ void UIEdit::DoEvent(TEventUI &event) {
         }
     }
     if(event.Type == UIEVENT_KEYDOWN){
-
         m_internalImpl->OnKeyDown(event);
         return;
     }
     UILabel::DoEvent(event);
 }
 
-void UIEdit::DrawCaret() {
+void UIEdit::DrawCaret(HANDLE_DC hDC) {
     m_internalImpl->DrawCaret();
 }
