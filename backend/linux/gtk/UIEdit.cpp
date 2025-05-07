@@ -2,6 +2,10 @@
 #include "UIPaintManager.h"
 #include "UIRect.h"
 #include "UIResourceMgr.h"
+#include <cstdint>
+#include <string>
+
+using namespace std;
 
 static uint32_t GetNumberOfCharacters(const UIString &str)
 {

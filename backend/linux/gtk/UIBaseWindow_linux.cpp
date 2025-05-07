@@ -1,6 +1,8 @@
 ﻿#include "UIBaseWindow.h"
 #include <gtk/gtk.h>
 #include <iostream>
+#include <memory>
+#include <cstdint>
 
 using namespace std;
 
@@ -160,9 +162,9 @@ static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uin
 
 void UIBaseWindow::Close(DuiResponseVal val) const {
     GdkEvent  *event = gdk_event_new(GDK_DELETE);
-    event->any.window = GDK_WINDOW(g_object_ref(G_OBJECT(gtk_widget_get_window(wnd))));
+    event->any.window = GDK_WINDOW(g_object_ref(G_OBJECT(gtk_widget_get_window(this->GetWND()))));
     event->any.send_event = true;
-    event->configure.send_event = ret;
+    event->configure.send_event = val;
     gtk_main_do_event(event);
     gdk_event_free(event);
 }
@@ -180,7 +182,7 @@ UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t styl
     return CreateWindow(parent, className, style, x, y, cx, cy ,this);
 }
 
-void UIBaseWindow::ShowWindow(bool bShow) {
+void UIBaseWindow::ShowWindow(bool bShow)const {
     if(bShow){
         gtk_widget_show(this->GetWND());
     }else{
@@ -255,23 +257,23 @@ DuiResponseVal UIBaseWindow::ShowModal() {
     return (DuiResponseVal)(ri.responnse_id);
 }
 
-void UIBaseWindow::Maximize() {
+void UIBaseWindow::Maximize() const {
     gtk_window_maximize(GTK_WINDOW(this->GetWND()));
 }
 
-void UIBaseWindow::Restore() {
+void UIBaseWindow::Restore() const {
     gtk_window_unmaximize(GTK_WINDOW(this->GetWND()));
 }
 
-void UIBaseWindow::Minimize() {
+void UIBaseWindow::Minimize() const {
     gtk_window_iconify(GTK_WINDOW(this->GetWND()));
 }
 
-HANDLE_WND UIBaseWindow::GetWND() {
+HANDLE_WND UIBaseWindow::GetWND() const {
     return m_data->widget;
 }
 
-void UIBaseWindow::SetWND(HANDLE_WND wndHandle) {
+void UIBaseWindow::SetWND(HANDLE_WND wndHandle) const {
     m_data->widget = wndHandle;
 }
 
@@ -289,7 +291,7 @@ static RECT GetWidgetRectangle(HANDLE_WND widget)
     //return rectangle;
 }
 
-void UIBaseWindow::CenterWindow() {
+void UIBaseWindow::CenterWindow() const {
     if(!GTK_IS_WINDOW(this->GetWND())){
         return;
     }

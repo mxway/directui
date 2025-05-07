@@ -1,4 +1,5 @@
 #include <UIScrollBar.h>
+#include <UIPaintManager.h>
 
 POINT UIScrollBar::GetCursorPos()const {
     POINT pt = { 0 };

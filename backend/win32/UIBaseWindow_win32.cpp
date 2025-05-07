@@ -102,7 +102,7 @@ UIBaseWindow::Create(HANDLE_WND parent, const UIString &className, uint32_t styl
     return m_data->Create(parent, className, style, exStyle,x,y,cx,cy,this);
 }
 
-void UIBaseWindow::ShowWindow(bool bShow) {
+void UIBaseWindow::ShowWindow(bool bShow)const {
     if( !::IsWindow(this->GetWND()) ) return;
     ::ShowWindow(this->GetWND(), bShow ? SW_SHOWNORMAL : SW_HIDE);
 }
@@ -133,26 +133,26 @@ DuiResponseVal UIBaseWindow::ShowModal() {
 }
 
 void UIBaseWindow::Close(DuiResponseVal val) const {
-    ::PostMessageW(wnd, WM_CLOSE, WPARAM(val),0);
+    ::PostMessageW(this->GetWND(), WM_CLOSE, WPARAM(val),0);
 }
 
-void UIBaseWindow::Maximize() {
+void UIBaseWindow::Maximize()const {
     ::SendMessageW(this->GetWND(), WM_SYSCOMMAND, SC_MAXIMIZE,0);
 }
 
-void UIBaseWindow::Restore() {
+void UIBaseWindow::Restore()const {
     ::SendMessageW(this->GetWND(), WM_SYSCOMMAND, SC_RESTORE,0);
 }
 
-void UIBaseWindow::Minimize() {
+void UIBaseWindow::Minimize()const {
     ::SendMessageW(this->GetWND(), WM_SYSCOMMAND, SC_MINIMIZE,0);
 }
 
-HANDLE_WND UIBaseWindow::GetWND() {
+HANDLE_WND UIBaseWindow::GetWND()const {
     return m_data->m_hWnd;
 }
 
-void UIBaseWindow::SetWND(HANDLE_WND wndHandle) {
+void UIBaseWindow::SetWND(HANDLE_WND wndHandle) const{
     m_data->m_hWnd = wndHandle;
 }
 
@@ -160,7 +160,7 @@ void UIBaseWindow::OnFinalMessage(HANDLE_WND hWnd) {
     cout<<"On Final Message:"<<endl;
 }
 
-void UIBaseWindow::CenterWindow() {
+void UIBaseWindow::CenterWindow() const {
     assert(::IsWindow(this->GetWND()));
     assert((GetWindowStyle(this->GetWND())&WS_CHILD)==0);
     RECT rcDlg = { 0 };
