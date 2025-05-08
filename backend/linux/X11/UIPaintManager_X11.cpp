@@ -1,10 +1,12 @@
+#include <cassert>
 #include <UIPaintManager.h>
 #include <UIRect.h>
-
+#include "TimerContext.h"
 #include "DispatchMessage.h"
 #include "DisplayInstance.h"
 #include "UIBaseWindowObjects.h"
 #include "X11HDC.h"
+#include <poll.h>
 
 struct UIPaintManagerInternalImp
 {
@@ -70,9 +72,25 @@ bool glbContinueRunning = true;
 void UIPaintManager::MessageLoop() {
 
     XEvent event;
-
+    Display *display = DisplayInstance::GetInstance().GetDisplay();
+    if (display == nullptr) {
+        fprintf(stderr,"Can't Open Display");
+        return;
+    }
+    struct pollfd fd = {
+        .fd = ConnectionNumber(display),
+        .events =  POLLIN
+    };
     while (glbContinueRunning) {
-        XNextEvent(DisplayInstance::GetInstance().GetDisplay(), &event);
+        bool ret = XPending(display)> 0 || poll(&fd,1,TimerContext::GetInstance().GetMinimumTimeout())>0;
+        if (!ret) {
+            //timeout
+            TimerContext::GetInstance().ProcessTimeout();
+            continue;
+        }
+        //有XEvent事件的时候，也有可能正好超时事件发生。
+        TimerContext::GetInstance().ProcessTimeout();
+        XNextEvent(display, &event);
         if(XFilterEvent(&event,None)){
             continue;
         }
@@ -371,31 +389,55 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
 }
 
 uint32_t UIPaintManager::SetTimer(UIControl *pControl, uint32_t uElapse) {
-    // TODO settimer
-    return 0;
+    assert(pControl != nullptr);
+    assert(uElapse > 0);
+
+    TIMERINFO *timerinfo = TimerContext::GetInstance().AddTimer(pControl,this,uElapse);
+    if (timerinfo == nullptr) {
+        return 0;
+    }
+    m_aTimers.Add(timerinfo);
+    return timerinfo->uTimerId;
 }
 
 bool UIPaintManager::KillTimer(UIControl *pControl, uint32_t nTimerID) {
-    //TODO KillTimer
+    assert(pControl != nullptr);
+    for(int i = 0; i< m_aTimers.GetSize(); i++){
+        auto* pTimer = static_cast<TIMERINFO*>(m_aTimers[i]);
+        if(pTimer->pSender == pControl && pTimer->uTimerId == nTimerID){
+            TimerContext::GetInstance().Remove(pTimer->uTimerId);
+            pTimer->uTimerId = 0;
+            pTimer->killed = true;
+            delete pTimer;
+            m_aTimers.Remove(i);
+            break;
+        }
+    }
     return true;
 }
 
 void UIPaintManager::KillTimer(UIControl *pControl) {
-    //TODO killtimer
+    assert(pControl != nullptr);
+    int count = m_aTimers.GetSize();
+    for(int i = 0, j = 0; i < count; i++){
+        auto* pTimer = static_cast<TIMERINFO*>(m_aTimers[i - j]);
+        if(pTimer->pSender == pControl){
+            if(!pTimer->killed)
+                TimerContext::GetInstance().Remove(pTimer->uTimerId);
+            delete pTimer;
+            m_aTimers.Remove(i - j);
+            j++;
+        }
+    }
 }
 
 void UIPaintManager::RemoveAllTimers() {
-    //TODO removealltimers
-#if 0
+    TimerContext::GetInstance().RemoveAllTimers();
     for(int i = 0; i < m_aTimers.GetSize(); i++){
         auto* pTimer = static_cast<TIMERINFO*>(m_aTimers[i]);
-        if(!pTimer->killed) {
-            g_source_remove(pTimer->uTimerId);
-        }
         delete pTimer;
     }
     m_aTimers.Empty();
-#endif
 }
 
 void UIPaintManager::SetInitSize(int cx, int cy) {

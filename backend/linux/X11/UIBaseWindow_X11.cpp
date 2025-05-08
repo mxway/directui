@@ -1,7 +1,8 @@
 #include <UIBaseWindow.h>
-
+#include <poll.h>
 #include "DispatchMessage.h"
 #include "DisplayInstance.h"
+#include "TimerContext.h"
 #include "UIBaseWindowObjects.h"
 #include "X11HDC.h"
 
@@ -110,14 +111,33 @@ void UIBaseWindow::ShowWindow(bool bShow) const {
 }
 
 DuiResponseVal UIBaseWindow::ShowModal(){
-    XMapWindow(m_data->m_window->display,m_data->m_window->window);
+    Display *display = DisplayInstance::GetInstance().GetDisplay();
+    if (display == nullptr) {
+        fprintf(stderr,"Can't Open Display");
+        return DUI_RESPONSE_CLOSE;
+    }
+    struct pollfd fd = {
+        .fd = ConnectionNumber(display),
+        .events =  POLLIN
+    };
+    XMapWindow(display,m_data->m_window->window);
     XEvent event;
 
-    Atom wm_delete_window = XInternAtom(m_data->m_window->display, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(m_data->m_window->display, m_data->m_window->window, &wm_delete_window, 1);
+    Atom wm_delete_window = XInternAtom(display, "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(display, m_data->m_window->window, &wm_delete_window, 1);
     bool running = true;
     while (running) {
-        XNextEvent(m_data->m_window->display, &event);
+
+        bool ret = XPending(display)> 0 || poll(&fd,1,TimerContext::GetInstance().GetMinimumTimeout())>0;
+        if (!ret) {
+            //timeout
+            TimerContext::GetInstance().ProcessTimeout();
+            continue;
+        }
+        //有XEvent事件的时候，也有可能正好超时事件发生。
+        TimerContext::GetInstance().ProcessTimeout();
+
+        XNextEvent(display, &event);
 
         if(XFilterEvent(&event,None)){
             continue;
@@ -128,7 +148,6 @@ DuiResponseVal UIBaseWindow::ShowModal(){
         }
         DispatchMessage(event);
         if(event.type == DestroyNotify){
-            this->OnFinalMessage(m_data->m_window);
             running = false;
         }
     }
