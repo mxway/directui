@@ -61,6 +61,7 @@ private:
     UIPtrArray      m_textWidthList;
     int             m_currentEditPos;
     Pixmap          m_cursor;
+    uint32_t        m_cursorHeight;
 
 private:
     void CalculatePasswordCharactersWidth();
@@ -77,7 +78,8 @@ UIEditInternal::UIEditInternal(UIEdit *uiEdit)
          m_uiEdit{uiEdit},
          m_text{uiEdit->GetText().GetData()},
          m_currentEditPos{-1},
-         m_cursor{0}
+         m_cursor{0},
+         m_cursorHeight{0}
 {
 
 }
@@ -216,11 +218,6 @@ void UIEditInternal::CalculateCurrentEditPositionFromMousePoint(POINT pt) {
 }
 
 const int CURSOR_WIDTH = 6;
-const int CURSOR_HEIGHT=24;
-
-static unsigned char cursoricon_bits [ ] = {
-    0x3f , 0x03f , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c ,
-    0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x0c , 0x03f , 0x03f } ;
 
 void UIEditInternal::DrawCaret(HANDLE_DC hDC) {
     if(m_currentEditPos < 0){
@@ -237,14 +234,26 @@ void UIEditInternal::DrawCaret(HANDLE_DC hDC) {
     rect.y = rcItem.top + rcTextPadding.top + 2;
     rect.width = 1;
     rect.height = rcItem.bottom - rcItem.top;
+    if (rect.height <8) {
+        return;
+    }
+
     X11Window *window = m_uiEdit->GetManager()->GetPaintWindow();
     if (m_cursor == 0) {
+        m_cursorHeight = rect.height - 8;
+        unsigned char *byteData = new unsigned char[m_cursorHeight];
+        byteData[0] = 0x3f;
+        byteData[1] = 0x3f;
+        byteData[m_cursorHeight-1] = 0x3f;
+        byteData[m_cursorHeight-2] = 0x3f;
+        memset(byteData+2,0x0c,m_cursorHeight-4);
         m_cursor = XCreatePixmapFromBitmapData( window->display , window->window ,
-                reinterpret_cast<char *>(cursoricon_bits), CURSOR_WIDTH , CURSOR_HEIGHT ,
+                reinterpret_cast<char *>(byteData), CURSOR_WIDTH , m_cursorHeight ,
                 0xff000000 , WhitePixel ( window->display , window->screen ) ,
                 window->depth ) ;
+        delete []byteData;
     }
-    XCopyArea(window->display,m_cursor,hDC->drawablePixmap,hDC->gc,0,0,CURSOR_WIDTH,CURSOR_HEIGHT,rect.x,rect.y);
+    XCopyArea(window->display,m_cursor,hDC->drawablePixmap,hDC->gc,0,0,CURSOR_WIDTH,m_cursorHeight,rect.x,rect.y+2);
 }
 
 static bool IsPrintableChar(KeySym keysym)
@@ -335,65 +344,6 @@ void UIEditInternal::OnKeyDown(TEventUI &event) {
             m_uiEdit->SetText(UIString{m_text.c_str()});
         }
     }
-#if 0
-    auto  *eventKey = (XKeyEvent*)event.wParam;
-    if(eventKey == nullptr){
-        return;
-    }
-    KeySym keysym = XLookupKeysym(eventKey,0);
-    if(keysym == VK_HOME){
-        m_currentEditPos = 0;
-        m_uiEdit->Invalidate();
-        return;
-    }
-    if(keysym == VK_END){
-        m_currentEditPos = m_textWidthList.GetSize()-1;
-        m_uiEdit->Invalidate();
-        return;
-    }
-    if(keysym == VK_LEFT){
-        if(m_currentEditPos != 0){
-            m_currentEditPos--;
-            m_uiEdit->Invalidate();
-        }
-        return;
-    }
-    if(keysym == VK_RIGHT){
-        if(m_currentEditPos >= m_textWidthList.GetSize()-1){
-            m_currentEditPos = m_textWidthList.GetSize()-1;
-            return;
-        }else{
-            m_currentEditPos += 1;
-        }
-        m_uiEdit->Invalidate();
-        return;
-    }
-    if(keysym == VK_BACKSPACE){
-        if(m_currentEditPos == 0){
-            return;
-        }
-        uint32_t totalBytes = GetCharactersBytes(m_currentEditPos);
-        const char *p = m_text.c_str() + totalBytes;
-        const char *charStart = CharPrev(m_text.c_str(),p);
-        m_text.erase(charStart - m_text.c_str(), p-charStart);
-        m_textWidthList.Remove(m_currentEditPos);
-        m_currentEditPos--;
-        m_uiEdit->SetText(UIString{m_text.c_str()});
-        return;
-    }
-    if(keysym == VK_DELETE){
-        if(m_currentEditPos == m_textWidthList.GetSize()){
-            return;
-        }
-        int totalBytes = GetCharactersBytes(m_currentEditPos);
-        const char *p = m_text.c_str() + totalBytes;
-        const char *nextChar = CharNext(p);
-        m_text.erase(p - m_text.c_str(), nextChar-p);
-        m_textWidthList.Remove(m_currentEditPos+1);
-        m_uiEdit->SetText(UIString{m_text.c_str()});
-        return;
-    }
-#endif
 }
 
 int UIEditInternal::GetCharactersBytes(int numberOfChars) {
