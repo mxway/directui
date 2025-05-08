@@ -298,8 +298,40 @@ void UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT 
     XFreePixmap(hDC->x11Window->display,pixmap);
 }
 void UIRenderEngine::DrawColor(HANDLE_DC hDC, const RECT &rc, uint32_t color) {
-    XSetForeground(hDC->x11Window->display,hDC->gc,color);
-    XFillRectangle(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
+    if(color >= 0xff000000){
+        XSetForeground(hDC->x11Window->display,hDC->gc,color);
+        XFillRectangle(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
+        return;
+    }
+
+    Display  *display = hDC->x11Window->display;
+    Pixmap pixmap = XCreatePixmap(display,hDC->x11Window->window,
+                                  rc.right-rc.left,rc.bottom-rc.top,32);
+    XRenderPictFormat  *format = nullptr;
+    if(hDC->x11Window->depth == 32){
+        format = XRenderFindStandardFormat(display,PictStandardARGB32);
+    }else{
+        format = XRenderFindStandardFormat(display,PictStandardRGB24);
+    }
+    XRenderColor renderColor;
+    renderColor.red = XDoubleToFixed(((color>>16)&0xff)/256.0);
+    renderColor.green = XDoubleToFixed(((color>>8)&0xff)/256.0);
+    renderColor.blue = XDoubleToFixed( (color&0xff)/256.0);
+    renderColor.alpha = XDoubleToFixed(((color>>24)&0xff)/256.0);
+    Picture renderPicture = XRenderCreatePicture(
+            display,pixmap,
+            XRenderFindStandardFormat(display,
+                                      PictStandardARGB32),
+                                      0,nullptr);
+    XRenderFillRectangle(display,PictOpSrc,
+                         renderPicture,&renderColor,0,0,rc.right-rc.left,rc.bottom-rc.top);
+    Picture picture = XRenderCreatePicture(display,hDC->drawablePixmap,format,0,nullptr);
+
+    XRenderComposite(display,PictOpXor,renderPicture,None,picture,0,0,
+                     0,0,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
+    XFreePixmap(display,pixmap);
+    XRenderFreePicture(display,picture);
+    XRenderFreePicture(display,renderPicture);
 }
 
 void UIRenderEngine::DrawGradient(HANDLE_DC hDC, const RECT &rc, uint32_t dwFirst, uint32_t dwSecond, bool bVertical,
@@ -479,7 +511,7 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
                                   hDC->x11Window->colormap);
     XftDrawSetClip(draw,region);
     //XftDrawSetClipRectangles(draw,)
-    pango_xft_render_layout(draw, &color,layout,rc.left*PANGO_SCALE,nFixY*PANGO_SCALE);
+    pango_xft_render_layout(draw, &color,layout,rc.left*PANGO_SCALE,(nFixY-1)*PANGO_SCALE);
 
     XDestroyRegion(region);
     XftDrawDestroy(draw);
