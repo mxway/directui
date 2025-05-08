@@ -15,7 +15,9 @@ HANDLE_DC  CreateHDC(X11Window *window, Drawable draw,int width,int height){
 Region     SelectRegion(HANDLE_DC hdc,Region newRegion){
     Region oldRegion = hdc->currentRegion;
     hdc->currentRegion = newRegion;
-    XSetRegion(hdc->x11Window->display,hdc->gc,newRegion);
+    if (newRegion != nullptr) {
+        XSetRegion(hdc->x11Window->display,hdc->gc,newRegion);
+    }
     return oldRegion;
 }
 

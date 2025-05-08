@@ -380,6 +380,13 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
     PangoLayout *layout = pango_layout_new(context);
     PangoFontDescription *FontDesc;
 
+    Region region = XCreateRegion();
+    XRectangle  regionRect = {static_cast<short>(rc.left),
+        static_cast<short>(rc.top),
+        static_cast<unsigned short>(nWidth),
+        static_cast<unsigned short>(nHeight)};
+    XUnionRectWithRegion(&regionRect,region,region);
+
     // 设置文本内容
     pango_layout_set_text(layout, text.GetData(), text.GetLength());
 
@@ -470,8 +477,11 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
     XftDraw *draw = XftDrawCreate(hDC->x11Window->display, hDC->drawablePixmap,
                                   hDC->x11Window->visual,
                                   hDC->x11Window->colormap);
+    XftDrawSetClip(draw,region);
+    //XftDrawSetClipRectangles(draw,)
     pango_xft_render_layout(draw, &color,layout,rc.left*PANGO_SCALE,nFixY*PANGO_SCALE);
 
+    XDestroyRegion(region);
     XftDrawDestroy(draw);
     // 清理资源
     g_object_unref(layout);
@@ -519,7 +529,7 @@ static void GetTextExtentPoint(HANDLE_DC hDC, const char *text, int cchSize, UIF
     g_object_unref(context);
 }
 
-static void TextOut(HANDLE_DC hDC, uint32_t textColor, long x, long y, const char *text, int cchSize, UIFont *font)
+static void TextOut(XftDraw *xftDraw,HANDLE_DC hDC, uint32_t textColor, long x, long y, const char *text, int cchSize, UIFont *font)
 {
     PangoFontDescription *FontDesc;
 
@@ -561,12 +571,7 @@ static void TextOut(HANDLE_DC hDC, uint32_t textColor, long x, long y, const cha
         color.color.alpha = 65535;
     }
 
-    XftDraw *draw = XftDrawCreate(hDC->x11Window->display, hDC->drawablePixmap,
-                                  hDC->x11Window->visual,
-                                  hDC->x11Window->colormap);
-    pango_xft_render_layout(draw, &color,layout,x*PANGO_SCALE,y*PANGO_SCALE);
-
-    XftDrawDestroy(draw);
+    pango_xft_render_layout(xftDraw, &color,layout,x*PANGO_SCALE,y*PANGO_SCALE);
 
     if(shouldReleaseAttrList){
         pango_attr_list_unref(attrList);
@@ -625,12 +630,14 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
         static_cast<ushort>(rc.bottom-rc.top)};
     Region region = XCreateRegion();
     XUnionRectWithRegion(&currentRectangle,region,region);
-    Region oldRegion = GetRegion(hDC);
+    XftDraw *xftDraw = XftDrawCreate(hDC->x11Window->display, hDC->drawablePixmap,
+                                  hDC->x11Window->visual,
+                                  hDC->x11Window->colormap);
     if(bDraw){
-        if (oldRegion != nullptr) {
-            XIntersectRegion(region,oldRegion,region);
+        if (hDC->currentRegion != nullptr) {
+            XIntersectRegion(region,hDC->currentRegion,region);
         }
-        SelectRegion(hDC,region);
+        XftDrawSetClip(xftDraw,region);
     }
 
     const char *pstrText = text.GetData();
@@ -1270,11 +1277,11 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               &pstrText[1], 1,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC,textColor, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(xftDraw,hDC,textColor, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
                 else
-                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
+                    ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
                               &pstrText[1], 1,selectedFont);
             }
             pt.x += szSpace.cx;
@@ -1290,11 +1297,11 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               &pstrText[1], 1,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y, &pstrText[1], 1,selectedFont);
                 else
-                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
+                    ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
                               &pstrText[1], 1,selectedFont);
             }
             pt.x += szSpace.cx;
@@ -1312,10 +1319,10 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               " ", 1,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y, " ", 1,selectedFont);
-                else ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight, " ", 1,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y, " ", 1,selectedFont);
+                else ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight, " ", 1,selectedFont);
             }
             pt.x += szSpace.cx;
             cxMaxWidth = MAX((long)cxMaxWidth, pt.x);
@@ -1397,20 +1404,20 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
                 iVAlign = DT_BOTTOM;
                 if (aVAlignArray.GetSize() > 0) iVAlign = (uint32_t)(long)aVAlignArray.GetAt(aVAlignArray.GetSize() - 1);
                 if (iVAlign == DT_VCENTER)
-                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
+                    ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + (cyLineHeight - fontHeight) / 2,
                               pstrText, cchSize,selectedFont);
-                else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y, pstrText, cchSize,selectedFont);
+                else if (iVAlign == DT_TOP) ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y, pstrText, cchSize,selectedFont);
                 else
-                    ::TextOut(hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
+                    ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset, pt.y + cyLineHeight - fontHeight,
                               pstrText, cchSize,selectedFont);
 
                 if( pt.x >= rc.right && (uStyle & DT_END_ELLIPSIS) != 0 ) {
-                    if (iVAlign == DT_VCENTER) ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx, pt.y + (cyLineHeight -
+                    if (iVAlign == DT_VCENTER) ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset + szText.cx, pt.y + (cyLineHeight -
                                                                                                               fontHeight) /
                                                                                                              2, "...", 3,selectedFont);
-                    else if (iVAlign == DT_TOP) ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx, pt.y, "...", 3,selectedFont);
+                    else if (iVAlign == DT_TOP) ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset + szText.cx, pt.y, "...", 3,selectedFont);
                     else
-                        ::TextOut(hDC, textColor, pt.x + cxOffset + szText.cx,
+                        ::TextOut(xftDraw,hDC, textColor, pt.x + cxOffset + szText.cx,
                                   pt.y + cyLineHeight - fontHeight, "...", 3,selectedFont);
                 }
             }
@@ -1478,8 +1485,6 @@ void UIRenderEngine::DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT&
         rc.right = MIN(rc.right, (long)cxMaxWidth);
     }
 
-    if(bDraw){
-        SelectRegion(hDC,oldRegion);
-    }
     XDestroyRegion(region);
+    XftDrawDestroy(xftDraw);
 }

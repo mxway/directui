@@ -14,7 +14,7 @@
 		</VerticalLayout>
 	</HorizontalLayout>
 	<HorizontalLayout height="35" inset="0,4,0,8">
-		<VerticalLayout inset="8,4,2,2" width="80">
+		<VerticalLayout inset="8,4,2,2" width="90">
 			<Text text="Domain/ip:" textcolor="#000000" font="1"></Text>
 		</VerticalLayout>
 		<VerticalLayout>
