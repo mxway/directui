@@ -297,6 +297,7 @@ void UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT 
     }
     XFreePixmap(hDC->x11Window->display,pixmap);
 }
+
 void UIRenderEngine::DrawColor(HANDLE_DC hDC, const RECT &rc, uint32_t color) {
     if(color >= 0xff000000){
         XSetForeground(hDC->x11Window->display,hDC->gc,color);
@@ -305,33 +306,41 @@ void UIRenderEngine::DrawColor(HANDLE_DC hDC, const RECT &rc, uint32_t color) {
     }
 
     Display  *display = hDC->x11Window->display;
-    Pixmap pixmap = XCreatePixmap(display,hDC->x11Window->window,
-                                  rc.right-rc.left,rc.bottom-rc.top,32);
-    XRenderPictFormat  *format = nullptr;
-    if(hDC->x11Window->depth == 32){
-        format = XRenderFindStandardFormat(display,PictStandardARGB32);
-    }else{
-        format = XRenderFindStandardFormat(display,PictStandardRGB24);
-    }
-    XRenderColor renderColor;
-    renderColor.red = XDoubleToFixed(((color>>16)&0xff)/256.0);
-    renderColor.green = XDoubleToFixed(((color>>8)&0xff)/256.0);
-    renderColor.blue = XDoubleToFixed( (color&0xff)/256.0);
-    renderColor.alpha = XDoubleToFixed(((color>>24)&0xff)/256.0);
-    Picture renderPicture = XRenderCreatePicture(
-            display,pixmap,
-            XRenderFindStandardFormat(display,
-                                      PictStandardARGB32),
-                                      0,nullptr);
-    XRenderFillRectangle(display,PictOpSrc,
-                         renderPicture,&renderColor,0,0,rc.right-rc.left,rc.bottom-rc.top);
-    Picture picture = XRenderCreatePicture(display,hDC->drawablePixmap,format,0,nullptr);
+    int width = rc.right - rc.left;
+    int height = rc.bottom - rc.top;
+    double fade = ((color>>24)&0xff)/255.0;
+    XRenderColor alpha = {.alpha = (ushort)(0xffff*fade)};
+    XRenderColor iAlpha = {.alpha = (ushort)(0xffff*(1-fade))};
+    Picture a = XRenderCreateSolidFill(display,&alpha);
+    Picture ia = XRenderCreateSolidFill(display,&iAlpha);
 
-    XRenderComposite(display,PictOpXor,renderPicture,None,picture,0,0,
-                     0,0,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
-    XFreePixmap(display,pixmap);
-    XRenderFreePicture(display,picture);
-    XRenderFreePicture(display,renderPicture);
+    Pixmap  originPixmap = XCreatePixmap(display,hDC->drawablePixmap,width,height,hDC->x11Window->depth);
+    Pixmap  colorPixmap = XCreatePixmap(display,hDC->drawablePixmap,width,height,hDC->x11Window->depth);
+
+    GC originPixmapGC = XCreateGC(display,originPixmap,0,nullptr);
+    XCopyArea(display,hDC->drawablePixmap,originPixmap,originPixmapGC,rc.left,rc.top,width,
+        height,0,0);
+    XFreeGC(display,originPixmapGC);
+
+    GC colorGC = XCreateGC(display,colorPixmap,0,nullptr);
+    XSetForeground(display,colorGC,color&0xffffff);
+    XFillRectangle(display,colorPixmap,colorGC,0,0,width,height);
+    XFreeGC(display,colorGC);
+
+    Picture dstPicture = XRenderCreatePicture(display,hDC->drawablePixmap,XRenderFindVisualFormat(display, hDC->x11Window->visual),0,nullptr);
+    Picture originPicture = XRenderCreatePicture(display,originPixmap,XRenderFindVisualFormat(display, hDC->x11Window->visual),0,nullptr);
+    Picture colorPicture = XRenderCreatePicture(display,colorPixmap,XRenderFindVisualFormat(display, hDC->x11Window->visual),0,nullptr);
+
+    XRenderComposite(display,PictOpSrc,colorPicture,a,dstPicture,0,0,0,0,rc.left,rc.top,width,height);
+    XRenderComposite(display,PictOpAdd,originPicture,ia,dstPicture,0,0,0,0,rc.left,rc.top,width,height);
+
+    XRenderFreePicture(display,colorPicture);
+    XRenderFreePicture(display,originPicture);
+    XRenderFreePicture(display,dstPicture);
+    XFreePixmap(display,originPixmap);
+    XFreePixmap(display,colorPixmap);
+    XRenderFreePicture(display,a);
+    XRenderFreePicture(display,ia);
 }
 
 void UIRenderEngine::DrawGradient(HANDLE_DC hDC, const RECT &rc, uint32_t dwFirst, uint32_t dwSecond, bool bVertical,
