@@ -144,8 +144,7 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             {
                 m_bUpdateNeeded = false;
                 if(m_pRoot->IsUpdateNeeded()){
-                    XExposeEvent *event = static_cast<XExposeEvent *>(wParam);
-                    UIRect clientRect {event->x,event->y,event->x + event->width,event->y + event->height};
+                    UIRect clientRect {0,0,m_paintWnd->width,m_paintWnd->height};
                     m_pRoot->SetPos(clientRect);
                 }else{
                     UIControl* pControl = nullptr;
