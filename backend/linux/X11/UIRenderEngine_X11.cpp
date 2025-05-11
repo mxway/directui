@@ -6,6 +6,7 @@
 #include <pango/pango-layout.h>
 #include <pango/pangoxft.h>
 #include "X11Bitmap.h"
+#include "RoundRectRegion.h"
 #include <UIPaintManager.h>
 #include <cctype>
 
@@ -404,7 +405,7 @@ void UIRenderEngine::DrawRect(HANDLE_DC hDC, const RECT &rc, int nSize, uint32_t
 
 void UIRenderEngine::DrawRoundRect(HANDLE_DC hDC, const RECT &rc, int radiusWeight, int radiusHeight, int nSize, uint32_t dwPenColor,
                                    int nStyle) {
-
+    //DrawRoundRect_Internal(hDC,rc,radiusWeight,radiusHeight,nSize,dwPenColor,nStyle);
 }
 
 void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \

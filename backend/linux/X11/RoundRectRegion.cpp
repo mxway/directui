@@ -1,6 +1,7 @@
 #include "RoundRectRegion.h"
 #include <vector>
 #include <cmath>
+#include "X11HDC.h"
 
 using namespace std;
 
@@ -122,28 +123,19 @@ static bool IsPointExistsInVector(vector<XPoint> &points, XPoint point){
 
 #define CreateCorner(CornerType) \
         CONCAT(CornerType,1)();    \
-        if(coverage>=0.30 && (!IsPointExistsInVector(circlePointers,point))){ \
-            circlePointers.push_back(point);                    \
+        if(coverage>=0.30 && (!IsPointExistsInVector(circlePoints,point))){ \
+            circlePoints.push_back(point);                    \
         }                                                                      \
         CONCAT(CornerType,2)();                                               \
-        if(coverage>=0.30 && (!IsPointExistsInVector(circlePointers,point))){   \
-            circlePointers.push_back(point);                                    \
+        if(coverage>=0.30 && (!IsPointExistsInVector(circlePoints,point))){   \
+            circlePoints.push_back(point);                                    \
         }
 
-Region CreateRoundRegion(int cx, int cy, int r, CircleCorner cornerType){
+
+static void GetPoints(int cx,int cy,int r, CircleCorner cornerType,vector<XPoint> &circlePoints){
     int x = 0, y = r;
     int d = 1 - r;
     int deltaE = 3, deltaSE = -2 * r + 5;
-    std::vector<XPoint> circlePointers;
-    if(cornerType == TopLeft){
-        circlePointers.push_back({static_cast<short>(cx-r),static_cast<short>(cy-r)});
-    }else if(cornerType == TopRight){
-        circlePointers.push_back({ static_cast<short>(cx+r), static_cast<short>(cy-r)});
-    }else if(cornerType == BottomRight){
-        circlePointers.push_back({static_cast<short>(cx + r), static_cast<short>(cy+r)});
-    }else if(cornerType == BottomLeft){
-        circlePointers.push_back({static_cast<short>(cx-r), static_cast<short>(cy+r)});
-    }
 
     while (x <= y) {
         // 处理当前点及其对称点
@@ -178,16 +170,30 @@ Region CreateRoundRegion(int cx, int cy, int r, CircleCorner cornerType){
         }
         x++;
     }
-    auto begin = circlePointers.begin();
+    auto begin = circlePoints.begin();
     //第一个为顶点元素，不能参与排序。否则创建的区域不正常。
     begin++;
-    std::sort(begin,circlePointers.end(),[&](const XPoint &point1, const XPoint &point2 ){
+    std::sort(begin,circlePoints.end(),[&](const XPoint &point1, const XPoint &point2 ){
         if(point1.x == point2.x){
             return point1.y < point2.y;
         }
         return point1.x < point2.x;
     });
-    return XPolygonRegion(circlePointers.data(),circlePointers.size(),EvenOddRule);
+}
+
+Region CreateRoundRegion(int cx, int cy, int r, CircleCorner cornerType){
+    std::vector<XPoint> circlePoints;
+    if(cornerType == TopLeft){
+        circlePoints.push_back({static_cast<short>(cx-r),static_cast<short>(cy-r)});
+    }else if(cornerType == TopRight){
+        circlePoints.push_back({ static_cast<short>(cx+r), static_cast<short>(cy-r)});
+    }else if(cornerType == BottomRight){
+        circlePoints.push_back({static_cast<short>(cx + r), static_cast<short>(cy+r)});
+    }else if(cornerType == BottomLeft){
+        circlePoints.push_back({static_cast<short>(cx-r), static_cast<short>(cy+r)});
+    }
+    GetPoints(cx,cy,r,cornerType,circlePoints);
+    return XPolygonRegion(circlePoints.data(),circlePoints.size(),EvenOddRule);
 }
 
 Region CreateRoundRectRegion(const UIRect &rect,int roundCornerRadius){
@@ -224,5 +230,35 @@ Region CreateRoundRectRegion(const UIRect &rect,int roundCornerRadius){
 void DrawRoundRect_Internal(HANDLE_DC hDC, const RECT &rc, int radiusWeight, int radiusHeight, int nSize, uint32_t dwPenColor,
                             int nStyle)
 {
+    XSetForeground(hDC->x11Window->display,hDC->gc,dwPenColor);
+    XSetLineAttributes(hDC->x11Window->display,hDC->gc,nSize,nStyle,CapButt, JoinMiter);
+    std::vector<XPoint> circlePoints;
+    GetPoints(rc.left + radiusWeight,
+              rc.top + radiusWeight,radiusWeight,TopLeft,circlePoints);
+    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
 
+    circlePoints.clear();
+    GetPoints(rc.left + radiusWeight,
+              rc.top + radiusWeight,radiusWeight,TopRight,circlePoints);
+    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
+
+    circlePoints.clear();
+    GetPoints(rc.left + radiusWeight,
+              rc.top + radiusWeight,radiusWeight,BottomLeft,circlePoints);
+    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
+
+    circlePoints.clear();
+    GetPoints(rc.left + radiusWeight,
+              rc.top + radiusWeight,radiusWeight,BottomRight,circlePoints);
+    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
+
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,
+              hDC->gc,rc.left + radiusWeight,rc.top,
+              rc.right-radiusWeight,rc.top);
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,
+              hDC->gc, rc.right,rc.top,rc.right,rc.bottom-radiusWeight);
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,
+              rc.left+radiusWeight,rc.bottom,rc.right-radiusWeight,rc.bottom);
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,
+              rc.left,rc.top + radiusWeight,rc.left,rc.bottom-radiusWeight);
 }
