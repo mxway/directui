@@ -1,4 +1,6 @@
 #include <UIWindowImpBase.h>
+#include <X11/extensions/shape.h>
+#include "RoundRectRegion.h"
 
 // 发送 _NET_WM_MOVERESIZE 消息以启动窗口移动
 void start_window_move_resize(Display *display, Window window, int x_root, int y_root, int operateCode) {
@@ -113,5 +115,16 @@ long UIWindowImpBase::OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, boo
 }
 
 long UIWindowImpBase::OnSize(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
+    SIZE szRoundCorner = m_pm.GetRoundCorner();
+    if(szRoundCorner.cx == 0){
+        return 0;
+    }
+    X11Window  *window = this->GetWND();
+    auto *configureEvent = static_cast<XConfigureEvent *>(wParam);
+    UIRect rect{0,0,configureEvent->width,configureEvent->height};
+    Region region = CreateRoundRectRegion(rect,szRoundCorner.cx);
+
+    XShapeCombineRegion(window->display, window->window, ShapeBounding, 0, 0, region, ShapeSet);
+    XDestroyRegion(region);
     return 0;
 }

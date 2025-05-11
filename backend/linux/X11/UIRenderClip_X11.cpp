@@ -1,5 +1,6 @@
 #include "UIRenderClip.h"
 #include "X11HDC.h"
+#include "RoundRectRegion.h"
 
 class UIRenderClipPrivate
 {
@@ -47,13 +48,9 @@ void UIRenderClip::GenerateClip(HANDLE_DC hdc, RECT rc, UIRenderClip &clip) {
 }
 
 void UIRenderClip::GenerateRoundClip(HANDLE_DC hdc, RECT rcPaint,RECT rcItem, int width, int height, UIRenderClip &clip) {
-    //TODO roundclip?????
     clip.m_impl->hOldRgn = GetRegion(hdc);
-    XRectangle paintRectangle = {static_cast<short>(rcPaint.left),
-                                 static_cast<short>(rcPaint.top),
-                                 static_cast<unsigned short>(rcPaint.right-rcPaint.left),
-                                 static_cast<unsigned short>(rcPaint.bottom-rcPaint.top)};
-    clip.m_impl->hRgn = CreateRectRegion(paintRectangle);
+    UIRect rect{rcPaint.left,rcPaint.top,rcPaint.right,rcPaint.bottom};
+    clip.m_impl->hRgn = CreateRoundRectRegion(rect,width);
     XIntersectRegion(clip.m_impl->hOldRgn,clip.m_impl->hRgn,clip.m_impl->hRgn);
     clip.m_impl->hOldRgn = SelectRegion(hdc, clip.m_impl->hRgn);
     clip.m_impl->hDC = hdc;
