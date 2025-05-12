@@ -214,10 +214,10 @@ void UIEditInternal::InsertCharAtEditPosition(wchar_t character) {
 void UIEditInternal::InitCaretAndImmPosition() {
     RECT rcItem{m_uiEdit->GetPos()};
     RECT textPadding{m_uiEdit->GetTextPadding()};
-    int caretHeight = rcItem.bottom - rcItem.top - textPadding.top - textPadding.bottom - 4;
+    int caretHeight = rcItem.bottom - rcItem.top - textPadding.top + textPadding.bottom - 10;
     ::CreateCaret(m_uiEdit->GetManager()->GetPaintWindow(),nullptr, 1, caretHeight);
     ::SetCaretPos(rcItem.left + textPadding.left + this->CalculateTextOffset(),
-                  rcItem.top + textPadding.top + 2);
+                  rcItem.top + textPadding.top + 5);
     COMPOSITIONFORM composition;
     composition.dwStyle = CFS_POINT;
     composition.ptCurrentPos.x = rcItem.left + textPadding.left + this->CalculateTextOffset();
@@ -327,7 +327,7 @@ void UIEditInternal::ShowCaretAndSetImmPosition() {
     RECT textPadding{m_uiEdit->GetTextPadding()};
     ::HideCaret(m_uiEdit->GetManager()->GetPaintWindow());
     ::SetCaretPos(rcItem.left + textPadding.left + this->CalculateTextOffset(),
-                  rcItem.top + textPadding.top + 2);
+                  rcItem.top + textPadding.top + 5);
     ::ShowCaret(m_uiEdit->GetManager()->GetPaintWindow());
     COMPOSITIONFORM composition;
     composition.dwStyle = CFS_POINT;
