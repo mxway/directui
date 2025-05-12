@@ -5,6 +5,8 @@
 #include <string>
 #include <pango/pango-layout.h>
 #include <pango/pangoxft.h>
+
+#include "DisplayInstance.h"
 #include "X11HDC.h"
 
 using namespace std;
@@ -87,7 +89,8 @@ UIEditInternal::UIEditInternal(UIEdit *uiEdit)
 UIEditInternal::~UIEditInternal() {
     this->ReleaseImmContext();
     if (m_cursor != 0) {
-        XFreePixmap(m_uiEdit->GetManager()->GetPaintWindow()->display,m_cursor);
+        XFreePixmap(DisplayInstance::GetInstance().GetDisplay(),m_cursor);
+        m_cursor = 0;
     }
 }
 
@@ -132,7 +135,7 @@ void UIEditInternal::ReleaseImmContext() {
         m_imContext = nullptr;
     }
     m_currentEditPos = -1;
-    m_uiEdit->Invalidate();
+    //m_uiEdit->Invalidate();
 }
 
 void UIEditInternal::OnImmCommit(const char *str) {
@@ -249,11 +252,19 @@ void UIEditInternal::DrawCaret(HANDLE_DC hDC) {
         memset(byteData+2,0x0c,m_cursorHeight-4);
         m_cursor = XCreatePixmapFromBitmapData( window->display , window->window ,
                 reinterpret_cast<char *>(byteData), CURSOR_WIDTH , m_cursorHeight ,
-                0xff000000 , WhitePixel ( window->display , window->screen ) ,
-                window->depth ) ;
+                0xff000000 ,0,
+                32 ) ;
         delete []byteData;
     }
-    XCopyArea(window->display,m_cursor,hDC->drawablePixmap,hDC->gc,0,0,CURSOR_WIDTH,m_cursorHeight,rect.x,rect.y+2);
+    Picture cursorPicture = XRenderCreatePicture(window->display,m_cursor,
+        XRenderFindStandardFormat(window->display,PictStandardARGB32),0,nullptr);
+    Picture drawablePicture = XRenderCreatePicture(window->display,hDC->drawablePixmap,
+        XRenderFindVisualFormat(window->display,window->visual),0,nullptr);
+    XRenderComposite(window->display,PictOpOver,cursorPicture,None,drawablePicture,0,0,0,0,rect.x, rect.y+2,
+        CURSOR_WIDTH,m_cursorHeight);
+    XRenderFreePicture(window->display,drawablePicture);
+    XRenderFreePicture(window->display,cursorPicture);
+    //XCopyArea(window->display,m_cursor,hDC->drawablePixmap,hDC->gc,0,0,CURSOR_WIDTH,m_cursorHeight,rect.x,rect.y+2);
 }
 
 static bool IsPrintableChar(KeySym keysym)
