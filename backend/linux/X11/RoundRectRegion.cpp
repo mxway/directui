@@ -144,7 +144,7 @@ static void GetPoints(int cx,int cy,int r, CircleCorner cornerType,vector<XPoint
 
                 int px,py;
                 XPoint point;
-                double coverage;
+                double coverage = 0.0;
                 if(cornerType == TopLeft){
                     CreateCorner(TopLeft);
                 }else if(cornerType == TopRight){
@@ -225,40 +225,4 @@ Region CreateRoundRectRegion(const UIRect &rect,int roundCornerRadius){
     XSubtractRegion(region, bottomLeftRegion, region);
     XDestroyRegion(bottomLeftRegion);
     return region;
-}
-
-void DrawRoundRect_Internal(HANDLE_DC hDC, const RECT &rc, int radiusWeight, int radiusHeight, int nSize, uint32_t dwPenColor,
-                            int nStyle)
-{
-    XSetForeground(hDC->x11Window->display,hDC->gc,dwPenColor);
-    XSetLineAttributes(hDC->x11Window->display,hDC->gc,nSize,nStyle,CapButt, JoinMiter);
-    std::vector<XPoint> circlePoints;
-    GetPoints(rc.left + radiusWeight,
-              rc.top + radiusWeight,radiusWeight,TopLeft,circlePoints);
-    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
-
-    circlePoints.clear();
-    GetPoints(rc.left + radiusWeight,
-              rc.top + radiusWeight,radiusWeight,TopRight,circlePoints);
-    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
-
-    circlePoints.clear();
-    GetPoints(rc.left + radiusWeight,
-              rc.top + radiusWeight,radiusWeight,BottomLeft,circlePoints);
-    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
-
-    circlePoints.clear();
-    GetPoints(rc.left + radiusWeight,
-              rc.top + radiusWeight,radiusWeight,BottomRight,circlePoints);
-    XDrawLines(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,circlePoints.data(),circlePoints.size(),CoordModeOrigin);
-
-    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,
-              hDC->gc,rc.left + radiusWeight,rc.top,
-              rc.right-radiusWeight,rc.top);
-    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,
-              hDC->gc, rc.right,rc.top,rc.right,rc.bottom-radiusWeight);
-    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,
-              rc.left+radiusWeight,rc.bottom,rc.right-radiusWeight,rc.bottom);
-    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,
-              rc.left,rc.top + radiusWeight,rc.left,rc.bottom-radiusWeight);
 }

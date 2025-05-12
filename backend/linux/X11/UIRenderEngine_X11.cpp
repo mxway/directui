@@ -30,7 +30,9 @@ static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth,
                             }};
     XRenderSetPictureTransform(hdc->x11Window->display, picture, &transform);
     Picture offscreenPicture = XRenderCreatePicture(hdc->x11Window->display,hdc->drawablePixmap,offscreenFormat,0,nullptr);
-
+    if (hdc->currentRegion != nullptr) {
+        XRenderSetPictureClipRegion(hdc->x11Window->display,offscreenPicture,hdc->currentRegion);
+    }
     XRenderComposite(hdc->x11Window->display,PictOpOver,picture,None,offscreenPicture,0,0,0,0,dx,dy,dWidth,dHeight);
     XFreePixmap(hdc->x11Window->display,subPixmap);
     XRenderFreePicture(hdc->x11Window->display,picture);
@@ -405,7 +407,30 @@ void UIRenderEngine::DrawRect(HANDLE_DC hDC, const RECT &rc, int nSize, uint32_t
 
 void UIRenderEngine::DrawRoundRect(HANDLE_DC hDC, const RECT &rc, int radiusWeight, int radiusHeight, int nSize, uint32_t dwPenColor,
                                    int nStyle) {
-    //DrawRoundRect_Internal(hDC,rc,radiusWeight,radiusHeight,nSize,dwPenColor,nStyle);
+    XSetForeground(hDC->x11Window->display,hDC->gc,dwPenColor);
+    XSetLineAttributes(hDC->x11Window->display,hDC->gc,nSize,nStyle,CapButt, JoinMiter);
+    //左上角的圆弧
+    XDrawArc(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,rc.left,rc.top,radiusWeight*2,radiusHeight*2,
+        90*64,90*64);
+    //左下角的圆弧
+    XDrawArc(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc, rc.left ,rc.bottom-2*radiusHeight,
+        radiusWeight*2,radiusHeight*2,180*64,90*64);
+    //右下角的圆弧
+    XDrawArc(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc, rc.right - radiusWeight*2, rc.bottom-radiusHeight*2,
+        radiusWeight*2,radiusHeight*2,270*64,90*64);
+    //右上角的圆弧
+    XDrawArc(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc, rc.right - radiusWeight*2, rc.top,
+        radiusWeight*2,radiusHeight*2,0,90*64);
+    
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,
+              hDC->gc,rc.left + radiusWeight,rc.top,
+              rc.right-radiusWeight,rc.top);
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,
+              hDC->gc, rc.right,rc.top,rc.right,rc.bottom-radiusWeight);
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,
+              rc.left+radiusWeight,rc.bottom,rc.right-radiusWeight,rc.bottom);
+    XDrawLine(hDC->x11Window->display,hDC->drawablePixmap,hDC->gc,
+              rc.left,rc.top + radiusWeight,rc.left,rc.bottom-radiusWeight);
 }
 
 void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
