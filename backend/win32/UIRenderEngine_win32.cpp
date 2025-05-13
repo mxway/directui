@@ -396,7 +396,7 @@ UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT &rc, 
                             }
                         }
                     }
-                    else if( ytiled ) {
+                    else if( xtiled ) {
                         LONG lWidth = rcBmpPart.right - rcBmpPart.left - rcScale9.left - rcScale9.right;
                         int iTimes = (rcDest.right - rcDest.left + lWidth - 1) / lWidth;
                         for( int i = 0; i < iTimes; ++i ) {
