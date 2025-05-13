@@ -61,6 +61,10 @@ void DispatchMessage(XEvent& event) {
             DispatchMessage(event.xcrossing.window,DUI_WM_MOUSEENTER,&event.xcrossing,nullptr);
             break;
         }
+        case FocusOut: {
+            DispatchMessage(event.xfocus.window,DUI_WM_KILLFOCUS,&event.xfocus,nullptr);
+            break;
+        }
         case ConfigureNotify: {
             DispatchMessage(event.xconfigure.window,DUI_WM_SIZE, &event.xconfigure,nullptr);
             break;

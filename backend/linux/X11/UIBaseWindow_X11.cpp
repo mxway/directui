@@ -28,7 +28,6 @@ public:
     bool EventShouldBeIgnored(XEvent &event) const;
 
     X11Window *m_window;
-    //X11Window *m_parent;
     DuiResponseVal  m_duiResponseVal;
 };
 
@@ -87,7 +86,7 @@ HANDLE_WND UIBaseWindowPrivate::CreateWindow(HANDLE_WND parent, const UIString &
     }
     XSelectInput(m_window->display, m_window->window, ExposureMask | KeyPressMask | KeyReleaseMask
                                                       |ButtonReleaseMask | ButtonPressMask | PointerMotionMask | StructureNotifyMask
-                                                      |EnterWindowMask |LeaveWindowMask);
+                                                      |EnterWindowMask |LeaveWindowMask | FocusChangeMask);
     XMapWindow(m_window->display,m_window->window);
     XMoveWindow(m_window->display,m_window->window,rc.left,rc.top);
     return m_window;
@@ -168,7 +167,6 @@ DuiResponseVal UIBaseWindow::ShowModal(){
     XSetWMProtocols(display, currentWindow, &wm_delete_window, 1);
     bool running = true;
     while (running) {
-
         bool ret = XPending(display)> 0 || poll(&fd,1,TimerContext::GetInstance().GetMinimumTimeout())>0;
         if (!ret) {
             //timeout

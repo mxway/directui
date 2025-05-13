@@ -107,9 +107,7 @@ long UIComboWnd::HandleMessage_Internal(uint32_t uMsg, WPARAM wParam, LPARAM lPa
             POINT pt = {(long)Event->x, (long)Event->y};
             UIControl* pControl = m_pm.FindControl(pt);
             if( pControl && pControl->GetClass() != DUI_CTR_SCROLLBAR ) {
-                //TODO  Send Focus out event
-                //printf("Button Release Close Window..........\n");
-                //this->Close();
+                this->Close();
             }
         }
     }
@@ -128,7 +126,7 @@ long UIComboWnd::HandleMessage_Internal(uint32_t uMsg, WPARAM wParam, LPARAM lPa
             default:
                 TEventUI event;
                 event.Type = UIEVENT_KEYDOWN;
-                event.chKey = (uint16_t)keyEvent->keycode;
+                event.chKey = (uint16_t)keysym;
                 m_pOwner->DoEvent(event);
                 EnsureVisible(m_pOwner->GetCurSel());
                 return 0;
@@ -136,7 +134,6 @@ long UIComboWnd::HandleMessage_Internal(uint32_t uMsg, WPARAM wParam, LPARAM lPa
     }
     else if( uMsg == DUI_WM_MOUSEWHEEL ) {
         auto *EventScroll = (XButtonEvent *)wParam;
-        //int zDelta = (int) (short) HIWORD(wParam);
         TEventUI event = { 0 };
         event.Type = UIEVENT_SCROLLWHEEL;
         if(EventScroll->button == Button4){
@@ -153,9 +150,7 @@ long UIComboWnd::HandleMessage_Internal(uint32_t uMsg, WPARAM wParam, LPARAM lPa
         return 0;
     }
     else if( uMsg == DUI_WM_KILLFOCUS ) {
-        printf("This Close Combo Wnd......\n");
         this->Close();
-        //TODO delete EVENT?
     }
     return 0;
 }
