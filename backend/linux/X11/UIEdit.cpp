@@ -8,6 +8,7 @@
 
 #include "DisplayInstance.h"
 #include "X11HDC.h"
+#include "X11Window.h"
 
 using namespace std;
 

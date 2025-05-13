@@ -1,6 +1,7 @@
 #include <UICombo.h>
 #include <UIRect.h>
 
+#include "X11Window.h"
 #include "DisplayInstance.h"
 #include "../../src/UIComboWnd.h"
 
@@ -59,7 +60,7 @@ void UIComboWnd::Init(UICombo *pOwner) {
     cyFixed += 4; // CVerticalLayoutUI 默认的Inset 调整
     rc.bottom = rc.top + std::min((long)cyFixed, szDrop.cy);
 
-    X11Window_s *wnd = pOwner->GetManager()->GetPaintWindow();
+    X11Window *wnd = pOwner->GetManager()->GetPaintWindow();
     rc.left += wnd->x;
     rc.right += wnd->x;
     rc.top += wnd->y;

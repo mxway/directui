@@ -67,6 +67,7 @@ bool UIResourceMgr::AddImage(const UIString &image) {
     int height = 0;
     int channels = 0;
     stbi_uc *data = stbi_load_from_memory(resultData.m_buffer,resultData.m_bufferSize,&width,&height,&channels,4);
+    delete []resultData.m_buffer;
     bool bAlphaChannel = false;
     auto *imageBuffer = (unsigned char*)malloc(width*height*4);
     for( int i = 0; i < width * height; i++ )

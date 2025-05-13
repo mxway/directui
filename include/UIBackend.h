@@ -102,40 +102,7 @@
     //x11 as the default backend
     struct X11WindowHDC;
     struct X11Bitmap;
-
-    typedef struct X11Window_s{
-        X11Window_s()
-            :display{nullptr},
-            screen{-1},
-            window{0},
-            visual{nullptr},
-            colormap{0},
-            hdc {nullptr},
-            parent{nullptr},
-            depth{0},
-            x{0},
-            y{0},
-            width{0},
-            height{0}
-        {
-
-        }
-        ~X11Window_s(){
-
-        }
-        Display     *display;
-        int         screen;
-        Window      window;
-        Visual      *visual;
-        Colormap    colormap;
-        X11WindowHDC   *hdc;
-        X11Window_s     *parent;
-        int         depth;
-        int         x;
-        int         y;
-        int         width;
-        int         height;
-    }X11Window;
+    struct X11Window;
 
     typedef X11Window       *HANDLE_WND;
     typedef X11WindowHDC    *HANDLE_DC;

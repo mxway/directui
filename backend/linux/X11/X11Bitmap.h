@@ -12,7 +12,7 @@ struct X11Bitmap
 
     }
     ~X11Bitmap(){
-        delete buffer;
+        free(buffer);
     }
     uint32_t bufferSize;
     unsigned char *buffer;

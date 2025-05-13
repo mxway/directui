@@ -100,6 +100,9 @@ void UIPaintManager::ReleaseCapture() {
 }
 
 void UIPaintManager::Invalidate(RECT &rcItem) {
+    if (m_paintWnd == nullptr) {
+        return;
+    }
     if( rcItem.left < 0 ) rcItem.left = 0;
     if( rcItem .top < 0 ) rcItem.top = 0;
     if( rcItem.right < rcItem.left ) rcItem.right = rcItem.left;

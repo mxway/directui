@@ -1,6 +1,7 @@
 #include <UIScrollBar.h>
 #include "UIBackend.h"
 #include "UIPaintManager.h"
+#include "X11Window.h"
 
 POINT UIScrollBar::GetCursorPos()const {
     POINT pt = { 0 };
@@ -11,7 +12,7 @@ POINT UIScrollBar::GetCursorPos()const {
     int win_x = 0;
     int win_y = 0;
     unsigned int mask = 0;
-    X11Window_s *window = this->m_manager->GetPaintWindow();
+    X11Window *window = this->m_manager->GetPaintWindow();
     XQueryPointer(window->display, window->window, &root, &child,
                       &root_x, &root_y, &win_x, &win_y, &mask);
     pt.x = win_x;

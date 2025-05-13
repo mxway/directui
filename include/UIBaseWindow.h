@@ -24,6 +24,7 @@ enum DuiResponseVal
 class UIBaseWindow {
 public:
     UIBaseWindow();
+    virtual ~UIBaseWindow();
 
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, RECT rc);
     HANDLE_WND  Create(HANDLE_WND  parent, const UIString &className, uint32_t style, uint32_t exStyle, int x, int y, int cx,int cy);

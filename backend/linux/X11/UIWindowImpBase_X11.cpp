@@ -1,6 +1,7 @@
 #include <UIWindowImpBase.h>
 #include <X11/extensions/shape.h>
 #include "RoundRectRegion.h"
+#include "X11Window.h"
 
 // 发送 _NET_WM_MOVERESIZE 消息以启动窗口移动
 void start_window_move_resize(Display *display, Window window, int x_root, int y_root, int operateCode) {

@@ -5,6 +5,7 @@
 #include "TimerContext.h"
 #include "UIBaseWindowObjects.h"
 #include "X11HDC.h"
+#include "X11Window.h"
 
 class UIBaseWindowPrivate {
 public:

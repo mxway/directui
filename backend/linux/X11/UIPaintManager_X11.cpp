@@ -8,6 +8,8 @@
 #include "X11HDC.h"
 #include <poll.h>
 
+#include "X11Window.h"
+
 struct UIPaintManagerInternalImp
 {
 
@@ -106,7 +108,7 @@ void UIPaintManager::MessageLoop() {
 
 void UIPaintManager::Invalidate(RECT &rcItem) {
     UIRect uiRect{rcItem};
-    if(uiRect.IsEmpty()){
+    if(uiRect.IsEmpty() || m_paintWnd == nullptr){
         return;
     }
     X11Window  *window = m_paintWnd;

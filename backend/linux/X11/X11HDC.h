@@ -2,6 +2,8 @@
 #define DIRECTUI_X11HDC_H
 #include <UIBackend.h>
 
+struct X11Window;
+
 struct X11WindowHDC{
     //Display     *display;
     X11Window   *x11Window;

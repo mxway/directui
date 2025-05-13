@@ -10,6 +10,8 @@
 #include <UIPaintManager.h>
 #include <cctype>
 
+#include "X11Window.h"
+
 static int g_iFontID = MAX_FONT_ID;
 
 static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth, int dHeight,

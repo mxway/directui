@@ -1,4 +1,5 @@
 #include "X11HDC.h"
+#include "X11Window.h"
 
 HANDLE_DC  CreateHDC(X11Window *window, Drawable draw,int width,int height){
     auto *hdc = new X11WindowHDC;
