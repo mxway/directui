@@ -154,8 +154,7 @@ long UIComboWnd::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
         m_pm.AttachDialog(m_pLayout);
 
         return 0;
-    }
-    else if( uMsg == DUI_WM_CLOSE ) {
+    }else if( uMsg == DUI_WM_CLOSE ) {
         m_pOwner->SetManager(m_pOwner->GetManager(), m_pOwner->GetParent(), false);
         if( !m_pOwner->IsFloat() ) m_pOwner->SetPos(m_pOwner->GetPos(), false);
         else m_pOwner->SetPos(m_pOwner->GetRelativePos(), false);
@@ -163,10 +162,7 @@ long UIComboWnd::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
     }else {
         this->HandleMessage_Internal(uMsg,wParam,lParam);
     }
-
-    long lRes = 0;
-    if( m_pm.MessageHandler(uMsg, wParam, lParam, lRes) ) return lRes;
-    return UIBaseWindow::HandleMessage(uMsg, wParam, lParam);
+    return UIWindowImpBase::HandleMessage(uMsg, wParam, lParam);
 }
 
 void UIComboWnd::EnsureVisible(int iIndex) {

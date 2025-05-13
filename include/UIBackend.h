@@ -111,6 +111,7 @@
             visual{nullptr},
             colormap{0},
             hdc {nullptr},
+            parent{nullptr},
             depth{0},
             x{0},
             y{0},
@@ -128,6 +129,7 @@
         Visual      *visual;
         Colormap    colormap;
         X11WindowHDC   *hdc;
+        X11Window_s     *parent;
         int         depth;
         int         x;
         int         y;

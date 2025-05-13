@@ -10,7 +10,6 @@ class UIBaseWindowPrivate {
 public:
     UIBaseWindowPrivate()
         :m_window{nullptr},
-        m_parent{nullptr},
         m_duiResponseVal{DUI_RESPONSE_CLOSE}
     {
         m_window = new X11Window;
@@ -26,13 +25,15 @@ public:
     HANDLE_WND CreateWindow(HANDLE_WND parent,const UIString &className, uint32_t style, const RECT& rc);
     void SetTitle(const char *title) const ;
 
+    bool EventShouldBeIgnored(XEvent &event) const;
+
     X11Window *m_window;
-    X11Window *m_parent;
+    //X11Window *m_parent;
     DuiResponseVal  m_duiResponseVal;
 };
 
 HANDLE_WND UIBaseWindowPrivate::CreateWindow(HANDLE_WND parent, const UIString &className, uint32_t style, const RECT& rc) {
-    m_parent = parent;
+    m_window->parent = parent;
     setlocale(LC_ALL, "");
     if(DisplayInstance::GetInstance().GetDisplay() == nullptr){
         return nullptr;
@@ -49,8 +50,26 @@ HANDLE_WND UIBaseWindowPrivate::CreateWindow(HANDLE_WND parent, const UIString &
     }
 
     m_window->window = XCreateSimpleWindow(m_window->display, RootWindow(m_window->display,m_window->screen),
-                                           rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top,0,BlackPixel(m_window->display, m_window->screen),
-                                           WhitePixel(m_window->display, m_window->screen));
+                                               0,0,rc.right-rc.left,rc.bottom-rc.top,0,BlackPixel(m_window->display, m_window->screen),
+                                               WhitePixel(m_window->display, m_window->screen));
+    if (style == UI_WNDSTYLE_CHILD) {
+        // 移除窗口装饰
+        Atom hints = XInternAtom(m_window->display, "_MOTIF_WM_HINTS", False);
+        struct {
+            unsigned long flags;
+            unsigned long functions;
+            unsigned long decorations;
+            long input_mode;
+            unsigned long status;
+        } motif_hints = {2, 0, 0, 0, 0}; // decorations = 0 表示无装饰
+
+        XChangeProperty(
+                m_window->display,m_window->window,
+                hints, hints, 32, PropModeReplace,
+                (unsigned char *)&motif_hints, sizeof(motif_hints) / sizeof(long)
+        );
+    }
+
     m_window->hdc = new X11WindowHDC ;
     memset(m_window->hdc,0,sizeof(X11WindowHDC));
     m_window->hdc->x11Window = m_window;
@@ -63,13 +82,14 @@ HANDLE_WND UIBaseWindowPrivate::CreateWindow(HANDLE_WND parent, const UIString &
 
     this->SetTitle(className.GetData());
 
-    if(style != UI_WNDSTYLE_FRAME){
+    if(parent!= nullptr){
         XSetTransientForHint(m_window->display,m_window->window,parent->window);
     }
     XSelectInput(m_window->display, m_window->window, ExposureMask | KeyPressMask | KeyReleaseMask
                                                       |ButtonReleaseMask | ButtonPressMask | PointerMotionMask | StructureNotifyMask
                                                       |EnterWindowMask |LeaveWindowMask);
     XMapWindow(m_window->display,m_window->window);
+    XMoveWindow(m_window->display,m_window->window,rc.left,rc.top);
     return m_window;
 }
 
@@ -79,6 +99,26 @@ void UIBaseWindowPrivate::SetTitle(const char *title) const {
 
     XChangeProperty(m_window->display, m_window->window, net_wm_name, utf8_string, 8,
                     PropModeReplace, reinterpret_cast<const unsigned char*>(title), strlen(title));
+}
+
+bool UIBaseWindowPrivate::EventShouldBeIgnored(XEvent &event) const {
+    Window currentTopLevelWindow = m_window->window;
+    //窗口关闭事件，将窗口从窗口列表中删除。
+    if (event.type == DestroyNotify) {
+        return false;
+    }
+    UIBaseWindow *eventWindow = UIBaseWindowObjects::GetInstance().GetObject(event.xany.window);
+    if (eventWindow == nullptr) {
+        return true;
+    }
+    X11Window *current = eventWindow->GetWND();
+    while(current != nullptr){
+        if(current->window == currentTopLevelWindow){
+            return false;
+        }
+        current = current->parent;
+    }
+    return true;
 }
 
 UIBaseWindow::UIBaseWindow()
@@ -120,11 +160,12 @@ DuiResponseVal UIBaseWindow::ShowModal(){
         .fd = ConnectionNumber(display),
         .events =  POLLIN
     };
-    XMapWindow(display,m_data->m_window->window);
+    Window currentWindow = m_data->m_window->window;
+    XMapWindow(display,currentWindow);
     XEvent event;
 
     Atom wm_delete_window = XInternAtom(display, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(display, m_data->m_window->window, &wm_delete_window, 1);
+    XSetWMProtocols(display, currentWindow, &wm_delete_window, 1);
     bool running = true;
     while (running) {
 
@@ -142,12 +183,12 @@ DuiResponseVal UIBaseWindow::ShowModal(){
         if(XFilterEvent(&event,None)){
             continue;
         }
-        if (m_data->m_window->window!=0 && event.xany.window != m_data->m_window->window) {
-            //模态对话框，仅处理当前窗口事件。
+        if(m_data->EventShouldBeIgnored(event)){
+            //模态对话框，仅处理当前窗口及其子窗口事件。
             continue;
         }
         DispatchMessage(event);
-        if(event.type == DestroyNotify){
+        if(event.type == DestroyNotify && event.xany.window == currentWindow){
             running = false;
         }
     }
@@ -248,11 +289,11 @@ void UIBaseWindow::Close(DuiResponseVal val) const {
 
 
 void UIBaseWindow::CenterWindow() const {
-    if (this->m_data->m_parent != nullptr) {
-        RECT parentWndRect{m_data->m_parent->x,
-        m_data->m_parent->y,
-        m_data->m_parent->x + m_data->m_parent->width,
-        m_data->m_parent->y + m_data->m_parent->height
+    if (this->m_data->m_window->parent != nullptr) {
+        RECT parentWndRect{m_data->m_window->parent->x,
+                           m_data->m_window->parent->y,
+                           m_data->m_window->parent->x + m_data->m_window->parent->width,
+                           m_data->m_window->parent->y + m_data->m_window->parent->height
         };
 
         long xLeft = (parentWndRect.left + parentWndRect.right) / 2 - m_data->m_window->width / 2;

@@ -59,35 +59,20 @@ void UIComboWnd::Init(UICombo *pOwner) {
     cyFixed += 4; // CVerticalLayoutUI 默认的Inset 调整
     rc.bottom = rc.top + std::min((long)cyFixed, szDrop.cy);
 
-
-    //::MapWindowRect(pOwner->GetManager()->GetPaintWindow(), HWND_DESKTOP, &rc);
-    gint windowLeft = 0;
-    gint windowTop = 0;
     X11Window_s *wnd = pOwner->GetManager()->GetPaintWindow();
     rc.left += wnd->x;
     rc.right += wnd->x;
     rc.top += wnd->y;
     rc.bottom += wnd->y;
 
-    /*GdkDisplay *display = gtk_widget_get_display(pOwner->GetManager()->GetPaintWindow());
-    GdkMonitor *monitor = gdk_display_get_monitor_at_window(display, gtk_widget_get_window(pOwner->GetManager()->GetPaintWindow()));
-    GdkRectangle    workRectangle{0};
-    gdk_monitor_get_workarea(monitor, &workRectangle);*/
     UIRect rcWork{0,0,0,0};
     get_workarea(wnd->display,&rcWork);
-    //UIRect rcWork{0, 0, DisplayInstance::GetInstance().GetWidth(), DisplayInstance::GetInstance().GetHeight()};
-    //UIRect rcWork{workRectangle};
     if( rc.bottom > rcWork.bottom ) {
         rc.left = rcOwner.left;
         rc.right = rcOwner.right;
         if( szDrop.cx > 0 ) rc.right = rc.left + szDrop.cx;
         rc.top = rcOwner.top - MIN((long)cyFixed, szDrop.cy);
         rc.bottom = rcOwner.top;
-        rc.left += windowLeft;
-        rc.right += windowLeft;
-        rc.top += windowTop;
-        rc.bottom += windowTop;
-        //::MapWindowRect(pOwner->GetManager()->GetPaintWindow(), HWND_DESKTOP, &rc);
     }
 
     Create(pOwner->GetManager()->GetPaintWindow(), UIString{"ComboWnd"}, UI_WNDSTYLE_CHILD, 0, rc);
@@ -100,13 +85,11 @@ void UIComboWnd::Init(UICombo *pOwner) {
                     (unsigned char *)&wm_state_skip_taskbar, 1);
     XChangeProperty(currentWindow->display, currentWindow->window, wm_state, XA_ATOM, 32, PropModeAppend,
                     (unsigned char *)&wm_state_skip_pager, 1);
-    //gtk_window_set_skip_taskbar_hint(GTK_WINDOW(this->GetWND()), true);
-    //gtk_window_set_transient_for(GTK_WINDOW(this->GetWND()), GTK_WINDOW(pOwner->GetManager()->GetPaintWindow()));
     this->ShowWindow();
 }
 
 long UIComboWnd::HandleMessage_Internal(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
-if( uMsg == DUI_WM_MOUSEPRESS ) {
+    if( uMsg == DUI_WM_MOUSEPRESS ) {
         auto *Event = (XButtonEvent*)wParam;
 
         POINT pt = {(long)Event->x, (long)Event->y};
@@ -125,7 +108,8 @@ if( uMsg == DUI_WM_MOUSEPRESS ) {
             UIControl* pControl = m_pm.FindControl(pt);
             if( pControl && pControl->GetClass() != DUI_CTR_SCROLLBAR ) {
                 //TODO  Send Focus out event
-                this->Close();
+                //printf("Button Release Close Window..........\n");
+                //this->Close();
             }
         }
     }
@@ -169,6 +153,7 @@ if( uMsg == DUI_WM_MOUSEPRESS ) {
         return 0;
     }
     else if( uMsg == DUI_WM_KILLFOCUS ) {
+        printf("This Close Combo Wnd......\n");
         this->Close();
         //TODO delete EVENT?
     }

@@ -105,6 +105,9 @@ long UIWindowImpBase::OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool
 
 long UIWindowImpBase::OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled) {
     X11Window *window = this->GetWND();
+    if (window->window == 0) {
+        return 0;
+    }
     XDestroyWindow(window->display,window->window);
     window->window = 0;
     return 0;

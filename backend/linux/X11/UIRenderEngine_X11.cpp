@@ -466,6 +466,17 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
 
     pango_layout_set_font_description(layout, FontDesc);
 
+    if(uStyle & DT_CALCRECT){
+        int width = 0;
+        int height = 0;
+        pango_layout_get_pixel_size(layout, &width, &height);
+        rc.right = rc.left + width;
+        rc.bottom = rc.top + height;
+        g_object_unref(layout);
+        g_object_unref(context);
+        return;
+    }
+
     //
     // set alignment
     //

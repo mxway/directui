@@ -1,10 +1,10 @@
 #ifndef UICOMBOWND_H
 #define UICOMBOWND_H
-#include <UIBaseWindow.h>
+#include <UIWindowImpBase.h>
 #include <UICombo.h>
 #include <UIVerticalLayout.h>
 
-class UIComboWnd : public UIBaseWindow
+class UIComboWnd : public UIWindowImpBase
 {
 public:
     void            Init(UICombo *pOwner);
