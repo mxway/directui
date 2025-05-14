@@ -11,6 +11,7 @@ bool  UIPaintManager::m_useHSL = false;
 short UIPaintManager::m_H = 180;
 short UIPaintManager::m_S = 100;
 short UIPaintManager::m_L = 100;
+bool UIPaintManager::m_quitOnLastWindowDestroy = false;
 
 typedef struct tagFINDTABINFO
 {
@@ -638,4 +639,12 @@ void UIPaintManager::RemoveAllOptionGroups() {
         }
     }
     m_optionGroup.RemoveAll();
+}
+
+void UIPaintManager::SetQuitOnLastWindowDestroy(bool quitFlag) {
+    m_quitOnLastWindowDestroy = quitFlag;
+}
+
+bool UIPaintManager::GetQuitOnLastWindowDestroy() {
+    return m_quitOnLastWindowDestroy;
 }

@@ -1,4 +1,4 @@
-#include "UIBaseWindowObjects.h"
+#include <UIBaseWindowObjects.h>
 
 UIBaseWindowObjects::UIBaseWindowObjects() {
 
@@ -9,7 +9,7 @@ UIBaseWindowObjects &UIBaseWindowObjects::GetInstance() {
     return baseWindowObjects;
 }
 
-bool UIBaseWindowObjects::AddObject(Window window, UIBaseWindow *baseWindow) {
+bool UIBaseWindowObjects::AddObject(WindowEventType window, UIBaseWindow *baseWindow) {
     std::lock_guard<std::mutex> lockGuard{m_mutex};
     auto itr = m_windowObjects.find(window);
     if(itr != m_windowObjects.end()){
@@ -19,7 +19,7 @@ bool UIBaseWindowObjects::AddObject(Window window, UIBaseWindow *baseWindow) {
     return true;
 }
 
-UIBaseWindow *UIBaseWindowObjects::RemoveObject(Window window) {
+UIBaseWindow *UIBaseWindowObjects::RemoveObject(WindowEventType window) {
     std::lock_guard<std::mutex> lockGuard{m_mutex};
     auto itr = m_windowObjects.find(window);
     if(itr == m_windowObjects.end()){
@@ -46,7 +46,7 @@ UIBaseWindow *UIBaseWindowObjects::RemoveObject(UIBaseWindow *baseWindow) {
     return baseWindow;
 }
 
-UIBaseWindow *UIBaseWindowObjects::GetObject(Window window) {
+UIBaseWindow *UIBaseWindowObjects::GetObject(WindowEventType window) {
     std::lock_guard<std::mutex> lockGuard{m_mutex};
     auto itr = m_windowObjects.find(window);
     if(itr == m_windowObjects.end()){

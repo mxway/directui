@@ -165,6 +165,9 @@ public:
     void        RemoveOptionGroup(const UIString &groupName, UIControl *control);
     void        RemoveAllOptionGroups();
 
+    static  void        SetQuitOnLastWindowDestroy(bool quitFlag);
+    static  bool        GetQuitOnLastWindowDestroy();
+
 private:
     UIPtrArray* GetFoundControls();
     static UIControl* __FindControlFromNameHash(UIControl* pThis, LPVOID pData);
@@ -218,7 +221,7 @@ private:
     uint32_t                m_defaultLinkFontColor;
     uint32_t                m_defaultLinkHoverFontColor;
     uint32_t                m_defaultSelectedBkColor;
-
+    static bool             m_quitOnLastWindowDestroy;
 };
 
 #endif //DIRECTUI_UIPAINTMANAGER_H

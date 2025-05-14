@@ -2,7 +2,7 @@
 #include <gtk/gtk.h>
 #include <iostream>
 #include <memory>
-#include <cstdint>
+#include <UIBaseWindowObjects.h>
 
 using namespace std;
 
@@ -92,6 +92,10 @@ static void wrap_destroy(GtkWidget *widget, UIBaseWindow *pWindow)
     pWindow->HandleMessage(DUI_WM_DESTROY, nullptr, nullptr);
     //glbWindowShowed = false;
     pWindow->OnFinalMessage(nullptr);
+    UIBaseWindowObjects::GetInstance().RemoveObject(widget);
+    if (UIBaseWindowObjects::GetInstance().GetWindowCount()==0 && UIPaintManager::GetQuitOnLastWindowDestroy()) {
+        UI_APP_QUIT();
+    }
 }
 
 static void wrap_screen_change(GtkWidget *widget, GdkScreen *old_screen, gpointer userdata)
@@ -157,6 +161,7 @@ static HANDLE_WND CreateWindow(HANDLE_WND parent, const UIString &className, uin
     g_signal_connect(G_OBJECT(widget), "screen-changed", G_CALLBACK(wrap_screen_change),window);
     window->HandleMessage(DUI_WM_CREATE, (WPARAM)widget, (LPARAM)nullptr);
     wrap_screen_change(widget, nullptr, nullptr);
+    UIBaseWindowObjects::GetInstance().AddObject(widget, window);
     return widget;
 }
 

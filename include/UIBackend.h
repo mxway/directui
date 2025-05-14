@@ -8,6 +8,7 @@
     typedef HDC HANDLE_DC;
     typedef HBITMAP     HANDLE_BITMAP;
     typedef HFONT       HANDLE_FONT;
+    typedef HWND    WindowEventType;
     #define UILoadCursor(manager,CURSOR) ::SetCursor(::LoadCursor(nullptr,CURSOR));
 
     #define UI_IDC_ARROW        IDC_ARROW
@@ -40,6 +41,7 @@
     typedef cairo_t   *HANDLE_DC;
     typedef GdkPixbuf   *HANDLE_BITMAP;
     typedef PangoFontDescription *HANDLE_FONT;
+    typedef GtkWidget  *WindowEventType;
 
     #define VK_DOWN         GDK_KEY_Down
     #define VK_UP           GDK_KEY_Up
@@ -109,7 +111,9 @@
     typedef X11Bitmap       *HANDLE_BITMAP;
     typedef PangoFontDescription *HANDLE_FONT;
 
-    #define UI_APP_QUIT()       exit(0)
+    typedef Window          WindowEventType;
+    void    UIAppQuitX11();
+    #define UI_APP_QUIT()       UIAppQuitX11()
 
     #define VK_DOWN         XK_Down
     #define VK_UP           XK_Up

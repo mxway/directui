@@ -3,7 +3,7 @@
 #include <mutex>
 #include <map>
 #include <UIBaseWindow.h>
-#include "UIBackend.h"
+#include <UIBackend.h>
 
 class UIBaseWindowObjects {
 public:
@@ -13,15 +13,15 @@ public:
     UIBaseWindowObjects &operator=(UIBaseWindowObjects&&) = delete;
 
     static UIBaseWindowObjects &GetInstance();
-    bool                AddObject(Window window, UIBaseWindow *baseWindow);
-    UIBaseWindow        *RemoveObject(Window window);
+    bool                AddObject(WindowEventType window, UIBaseWindow *baseWindow);
+    UIBaseWindow        *RemoveObject(WindowEventType window);
     UIBaseWindow        *RemoveObject(UIBaseWindow *baseWindow);
-    UIBaseWindow        *GetObject(Window window);
+    UIBaseWindow        *GetObject(WindowEventType window);
     uint32_t            GetWindowCount();
 private:
     UIBaseWindowObjects();
 private:
-    std::map<Window,UIBaseWindow*> m_windowObjects;
+    std::map<WindowEventType,UIBaseWindow*> m_windowObjects;
     std::mutex  m_mutex;
 };
 

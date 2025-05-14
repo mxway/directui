@@ -3,7 +3,7 @@
 #include "DispatchMessage.h"
 #include "DisplayInstance.h"
 #include "TimerContext.h"
-#include "UIBaseWindowObjects.h"
+#include <UIBaseWindowObjects.h>
 #include "X11HDC.h"
 #include "X11Window.h"
 

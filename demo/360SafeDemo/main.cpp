@@ -18,6 +18,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     UIString resourcePath = UIResourceMgr::GetInstance().GetCurrentPath() +
                                 UIFileHelper::UI_PATH_SEPARATOR +
                                 u8"360SafeRes";
+    UIPaintManager::SetQuitOnLastWindowDestroy(true);
     UIResourceMgr::GetInstance().SetResourcePath(resourcePath);
     MainFrame   mainFrame;
     mainFrame.Create(nullptr,UIString{u8"计算机测试"},UI_WNDSTYLE_FRAME,0,0,0, 500,400);

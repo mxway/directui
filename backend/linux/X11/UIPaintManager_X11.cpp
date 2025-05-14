@@ -4,7 +4,7 @@
 #include "TimerContext.h"
 #include "DispatchMessage.h"
 #include "DisplayInstance.h"
-#include "UIBaseWindowObjects.h"
+#include <UIBaseWindowObjects.h>
 #include "X11HDC.h"
 #include <poll.h>
 
@@ -98,12 +98,15 @@ void UIPaintManager::MessageLoop() {
         }
         DispatchMessage(event);
         if (event.type == DestroyNotify) {
-            if(UIBaseWindowObjects::GetInstance().GetWindowCount()==0){
-                printf("注册窗口为0，退出程序\n");
+            if(UIBaseWindowObjects::GetInstance().GetWindowCount()==0 && m_quitOnLastWindowDestroy){
                 glbContinueRunning = false;
             }
         }
     }
+}
+
+void    UIAppQuitX11() {
+    glbContinueRunning = false;
 }
 
 void UIPaintManager::Invalidate(RECT &rcItem) {
@@ -439,6 +442,12 @@ void UIPaintManager::RemoveAllTimers() {
         delete pTimer;
     }
     m_aTimers.Empty();
+}
+
+void UIPaintManager::SetCapture() {
+}
+
+void UIPaintManager::ReleaseCapture() {
 }
 
 void UIPaintManager::SetInitSize(int cx, int cy) {
