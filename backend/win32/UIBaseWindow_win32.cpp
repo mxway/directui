@@ -2,8 +2,8 @@
 #include "../../include/UIRect.h"
 #include <windowsx.h>
 #include "EncodingTransform.h"
-#include <UIResourceMgr.h>
 #include <cassert>
+#include <UIBaseWindowObjects.h>
 
 #include <iostream>
 using namespace std;
@@ -63,6 +63,7 @@ LRESULT CALLBACK UIBaseWindowPrivate::__WndProc(HWND hWnd, UINT uMsg, WPARAM wPa
         auto lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
         pThis = static_cast<UIBaseWindow*>(lpcs->lpCreateParams);
         pThis->SetWND(hWnd);
+        UIBaseWindowObjects::GetInstance().AddObject(hWnd,pThis);
         ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, reinterpret_cast<LPARAM>(pThis));
     }
     else {
@@ -73,6 +74,10 @@ LRESULT CALLBACK UIBaseWindowPrivate::__WndProc(HWND hWnd, UINT uMsg, WPARAM wPa
             //if( pThis->m_bSubclassed ) pThis->Unsubclass();
             //pThis->m_hWnd = NULL;
             pThis->OnFinalMessage(hWnd);
+            UIBaseWindowObjects::GetInstance().RemoveObject(hWnd);
+            if (UIBaseWindowObjects::GetInstance().GetWindowCount()==0 && UIPaintManager::GetQuitOnLastWindowDestroy()) {
+                UI_APP_QUIT();
+            }
             return 0;
         }
     }
