@@ -128,9 +128,11 @@
     #define SB_LINEUP       Button4Mask
     #define SB_LINEDOWN     Button5Mask
 
+    class UIPaintManager;
+    void UILoadCursorX11(UIPaintManager *,int);
     #define UILoadCursor(manager,CURSOR) \
        do{                 \
-                ;\
+                UILoadCursorX11(manager,CURSOR);\
        }while(0);
 
     //定义鼠标光标
