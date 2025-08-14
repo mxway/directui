@@ -43,22 +43,32 @@ static bool AlphaBlend(HANDLE_DC hdc, Pixmap pixmap, int dx, int dy, int dWidth,
     return true;
 }
 
+static Pixmap CreatePixmapFromBitmapHandle(HANDLE_DC hDC, HANDLE_BITMAP hBitmap) {
+    Pixmap pixmap = XCreatePixmap(hDC->x11Window->display,hDC->drawablePixmap,hBitmap->width,
+                                  hBitmap->height,32);
+    GC pixmapGC = XCreateGC(hDC->x11Window->display,pixmap,0,nullptr);
+    XImage *ximage = XCreateImage(hDC->x11Window->display, hDC->x11Window->visual,32, ZPixmap, 0,
+                 reinterpret_cast<char *>(hBitmap->buffer),
+                 hBitmap->width,hBitmap->height, 32, 0);
+    XPutImage(hDC->x11Window->display,pixmap,pixmapGC,ximage,0,0,0,0,hBitmap->width,hBitmap->height);
+    XFreeGC(hDC->x11Window->display,pixmapGC);
+    hBitmap->buffer = NULL;
+    XDestroyImage(ximage);
+    return pixmap;
+}
+
 void UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT &rc, const RECT &rcPaint,
                                const RECT &rcBmpPart, const RECT &rcScale9, bool alpha, uint8_t uFade, bool hole,
                                bool xtiled, bool ytiled) {
     RECT rcDest;
     RECT rcTemp;
-    Pixmap pixmap = XCreatePixmap(hDC->x11Window->display,hDC->drawablePixmap,hBitmap->width,
-                                  hBitmap->height,32);
-    GC pixmapGC = XCreateGC(hDC->x11Window->display,pixmap,0,nullptr);
-    auto *data = static_cast<unsigned char *>(malloc(hBitmap->bufferSize));
-    memcpy(data, hBitmap->buffer,hBitmap->bufferSize);
-    XImage *ximage = XCreateImage(hDC->x11Window->display, hDC->x11Window->visual,32, ZPixmap, 0,
-                 reinterpret_cast<char *>(data),
-                 hBitmap->width,hBitmap->height, 32, 0);
-    XPutImage(hDC->x11Window->display,pixmap,pixmapGC,ximage,0,0,0,0,hBitmap->width,hBitmap->height);
-    XFreeGC(hDC->x11Window->display,pixmapGC);
-    XDestroyImage(ximage);
+    if (hBitmap->pixmap == 0) {
+        hBitmap->pixmap = CreatePixmapFromBitmapHandle(hDC, hBitmap);
+    }
+    if (hBitmap->pixmap == 0) {
+        return;
+    }
+    Pixmap pixmap = hBitmap->pixmap;
     //
     // middle
     //
@@ -300,7 +310,6 @@ void UIRenderEngine::DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT 
                 rcScale9.bottom, uFade);
         }
     }
-    XFreePixmap(hDC->x11Window->display,pixmap);
 }
 
 void UIRenderEngine::DrawColor(HANDLE_DC hDC, const RECT &rc, uint32_t color) {

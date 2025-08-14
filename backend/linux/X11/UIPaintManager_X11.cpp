@@ -189,8 +189,10 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
         case DUI_WM_SIZE:
         {
             XConfigureEvent *configureEvent = (XConfigureEvent*)wParam;
-            if(m_pRoot!=nullptr){
-                m_pRoot->NeedUpdate();
+            if (configureEvent->width != m_paintWnd->width || configureEvent->height != m_paintWnd->height) {
+                if(m_pRoot!=nullptr){
+                    m_pRoot->NeedUpdate();
+                }
             }
             m_paintWnd->x = configureEvent->x;
             m_paintWnd->y = configureEvent->y;
