@@ -28,9 +28,13 @@ UIRenderClip::~UIRenderClip() {
     }
 }
 
-static Region CreateRectRegion(XRectangle rect){
+static Region CreateRectRegion(RECT rc) {
+    XRectangle paintRectangle = {static_cast<short>(rc.left),
+                                 static_cast<short>(rc.top),
+                                 static_cast<unsigned short>(rc.right-rc.left),
+                                 static_cast<unsigned short>(rc.bottom-rc.top)};
     Region region = XCreateRegion();
-    XUnionRectWithRegion(&rect,region,region);
+    XUnionRectWithRegion(&paintRectangle,region,region);
     return region;
 }
 
@@ -40,7 +44,7 @@ void UIRenderClip::GenerateClip(HANDLE_DC hdc, RECT rc, UIRenderClip &clip) {
                                  static_cast<short>(rc.top),
                                  static_cast<unsigned short>(rc.right-rc.left),
                                  static_cast<unsigned short>(rc.bottom-rc.top)};
-    clip.m_impl->hRgn = CreateRectRegion(paintRectangle);
+    clip.m_impl->hRgn = CreateRectRegion(rc);
     XIntersectRegion(clip.m_impl->hOldRgn,clip.m_impl->hRgn,clip.m_impl->hRgn);
     clip.m_impl->hOldRgn = SelectRegion(hdc, clip.m_impl->hRgn);
     clip.m_impl->hDC = hdc;
@@ -49,12 +53,17 @@ void UIRenderClip::GenerateClip(HANDLE_DC hdc, RECT rc, UIRenderClip &clip) {
 
 void UIRenderClip::GenerateRoundClip(HANDLE_DC hdc, RECT rcPaint,RECT rcItem, int width, int height, UIRenderClip &clip) {
     clip.m_impl->hOldRgn = GetRegion(hdc);
-    UIRect rect{rcPaint.left,rcPaint.top,rcPaint.right,rcPaint.bottom};
-    clip.m_impl->hRgn = CreateRoundRectRegion(rect,width);
+    UIRect rect{rcItem.left,rcItem.top,rcItem.right,rcItem.bottom};
+    //控件的矩形区域和需要重新绘制的区域可能是不一样的。比如一个List控件，在更新时可能只需要重新绘制list表头。
+    //而这里的圆角矩形是指控件创建圆角矩形区域。
+    clip.m_impl->hRgn = CreateRoundRectRegion(rect,width); //创建控件的圆角矩形区域
+    Region  paintRegion = CreateRectRegion(rcPaint); //创建重绘区域
+    XIntersectRegion(clip.m_impl->hRgn, paintRegion, clip.m_impl->hRgn); //两者取交集
     XIntersectRegion(clip.m_impl->hOldRgn,clip.m_impl->hRgn,clip.m_impl->hRgn);
     clip.m_impl->hOldRgn = SelectRegion(hdc, clip.m_impl->hRgn);
     clip.m_impl->hDC = hdc;
     clip.m_impl->rcItem = rcPaint;
+    XDestroyRegion(paintRegion);
 }
 
 void UIRenderClip::UseOldClipBegin(HANDLE_DC hdc, UIRenderClip &clip) {

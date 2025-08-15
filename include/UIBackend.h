@@ -140,7 +140,7 @@
        }while(0);
 
     //定义鼠标光标
-    #define UI_IDC_ARROW        XC_arrow
+    #define UI_IDC_ARROW        XC_left_ptr
     #define UI_IDC_HAND         XC_hand1
     #define UI_IDC_TEXT         XC_xterm
     #define UI_IDC_RESIZEWE     XC_sb_h_double_arrow

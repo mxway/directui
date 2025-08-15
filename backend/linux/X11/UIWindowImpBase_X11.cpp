@@ -101,6 +101,7 @@ long UIWindowImpBase::OnCreate(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool
             hints, hints, 32, PropModeReplace,
             (unsigned char *)&motif_hints, sizeof(motif_hints) / sizeof(long)
     );
+    XResizeWindow(window->display,window->window,window->width,window->height);
     return 0;
 }
 
