@@ -18,11 +18,9 @@ UIRenderClip::UIRenderClip()
 }
 
 UIRenderClip::~UIRenderClip() {
-    //XSetRegion(m_impl->hDC->x11Window->display,m_impl->hDC->gc,m_impl->hOldRgn);
     if(m_impl->hDC!=nullptr && m_impl->hOldRgn!=nullptr){
         SelectRegion(m_impl->hDC,m_impl->hOldRgn);
     }
-    //SelectRegion(m_impl->hDC,m_impl->hOldRgn);
     if(m_impl->hRgn!=nullptr){
         XDestroyRegion(m_impl->hRgn);
     }
@@ -73,4 +71,3 @@ void UIRenderClip::UseOldClipBegin(HANDLE_DC hdc, UIRenderClip &clip) {
 void UIRenderClip::UseOldClipEnd(HANDLE_DC hdc, UIRenderClip &clip) {
     SelectRegion(hdc, clip.m_impl->hRgn);
 }
-

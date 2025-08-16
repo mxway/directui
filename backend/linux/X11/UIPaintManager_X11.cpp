@@ -10,9 +10,11 @@
 
 #include "X11Window.h"
 
-struct UIPaintManagerInternalImp
-{
-
+struct UIPaintManagerInternalImp {
+    UIPaintManagerInternalImp() {
+        memset(&m_repaintRect,0,sizeof(UIRect));
+    }
+    UIRect m_repaintRect;
 };
 
 static uint32_t MapKeyState(uint32_t state)
@@ -142,7 +144,15 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
     switch(uMsg){
         case DUI_WM_PAINT:
         {
-            if (m_paintWnd->window==0) {
+            XExposeEvent *event = static_cast<XExposeEvent *>(wParam);
+            if (m_paintWnd->window==0 || event==nullptr) {
+                return true;
+            }
+            UIRect newRedrawRect {event->x, event->y, event->x + event->width, event->y + event->height};
+            m_impl->m_repaintRect.Union(newRedrawRect);
+            if (event->count != 0) {
+                //此时event->count不为0，表示后续还有Epose事件要发送。这里我们使用m_impl的m_repaintRect来记录每次
+                //重绘区域的大小，当count为0时，统一进行一次绘制。m_repaintRect与每次Expose事件通知的重绘区域做并集运算。
                 return true;
             }
             if(m_bUpdateNeeded)
@@ -171,17 +181,24 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
 
             //
             // Is here has a rect for draw.
-            XExposeEvent *event = static_cast<XExposeEvent *>(wParam);
+
             if(event != nullptr){
-                UIRect rect {event->x,event->y,event->x + event->width, event->y + event->height};
-                if(!rect.IsEmpty()){
+                //UIRect rect {event->x,event->y,event->x + event->width, event->y + event->height};
+                if(!m_impl->m_repaintRect.IsEmpty()){
                     HANDLE_DC hdc = CreateHDC(m_paintWnd,m_paintWnd->window,m_paintWnd->width,m_paintWnd->height);
-                    m_pRoot->Paint(hdc,rect);
-                    XCopyArea(m_paintWnd->display,hdc->drawablePixmap,m_paintWnd->window,m_paintWnd->hdc->gc,rect.left,rect.top,
-                              rect.right-rect.left,rect.bottom-rect.top,rect.left,rect.top);
+                    m_pRoot->Paint(hdc,m_impl->m_repaintRect);
+                    XCopyArea(m_paintWnd->display,hdc->drawablePixmap,m_paintWnd->window,m_paintWnd->hdc->gc,
+                        m_impl->m_repaintRect.left,
+                        m_impl->m_repaintRect.top,
+                        m_impl->m_repaintRect.right - m_impl->m_repaintRect.left,
+                        m_impl->m_repaintRect.bottom - m_impl->m_repaintRect.top,
+                        m_impl->m_repaintRect.left,
+                        m_impl->m_repaintRect.top);
                     ::ReleaseHDC(hdc);
                 }
             }
+            //每次重新绘制后，我们都需要把m_impl->m_repaitRect矩形区域清0，表示xlib所有需要更新的区域都已被重绘。
+            m_impl->m_repaintRect.Empty();
             lRes = 1;
             return true;
 
