@@ -68,7 +68,7 @@ UIPaintManager::UIPaintManager()
          m_szInitWindowSize{0,0},
          m_rcSizeBox{0,0,0,0},
          m_roundCorner{0,0},
-         m_rcCaption {0,0,0,30},
+         m_rcCaption {0,0,0,0},
          m_pRoot {nullptr},
          m_pFocus {nullptr},
          m_pEventHover {nullptr},

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Window>
+<Window caption="0,0,0,30">
 	<Container width="182" height="152" inset="2,2,2,2" bkimage="file='table.png' source='0,0,64,64' dest='59,36,123,100'">
 		<Button float="true" normalimage="user.png" pos="92,6,132,46" />
 		<Button float="true" normalimage="user.png" pos="22,80,62,120" />

@@ -120,4 +120,5 @@ long UIComboWnd::HandleMessage_Internal(uint32_t uMsg, WPARAM wParam, LPARAM lPa
             }
         }
     }
+    return 0;
 }

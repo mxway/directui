@@ -10,6 +10,7 @@ static long OnNcHitTest(HANDLE_WND hWnd, UIPaintManager *paintManager, uint32_t 
     RECT rcClient;
     ::GetClientRect(hWnd, &rcClient);
 
+
     RECT rcCaption = paintManager->GetCaptionRect();
     if( pt.x >= rcClient.left + rcCaption.left && pt.x < rcClient.right - rcCaption.right \
 			&& pt.y >= rcCaption.top && pt.y < rcCaption.bottom ) {
@@ -68,12 +69,6 @@ long UIWindowImpBase::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam)
             return 0;
         case WM_ERASEBKGND:
             return 1;
-        case WM_KEYDOWN:
-            bHandle = false;
-            if(wParam == VK_ESCAPE || wParam==VK_RETURN){
-                UI_DESTROY_WINDOW(this->GetWND());
-            }
-            break;
         case WM_NCHITTEST:
             lRes = OnNcHitTest(this->GetWND(), &m_pm,uMsg, wParam, lParam,bHandle);
             break;
