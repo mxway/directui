@@ -329,7 +329,7 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
                     }
                     TDrawInfo info;
                     info.sDrawString = UIString{imageRun->id.c_str()};
-                    UIRenderEngine::DrawImage(hDC,m_manager,seg.rc,m_rcPaint,info);
+                    UIRenderEngine::DrawImage(hDC ,seg.rc,m_rcPaint,info);
                 }
             }
         }

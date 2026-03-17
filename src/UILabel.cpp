@@ -188,7 +188,7 @@ void UILabel::PaintText(HANDLE_DC hDC) {
             UIRenderEngine::DrawHtmlText(hDC, m_manager, rc, m_text, m_textColor, \
 					nullptr, nullptr, nLinks, m_fontId, m_textStyle);
         else
-            UIRenderEngine::DrawText(hDC, m_manager, rc, m_text, m_textColor, \
+            UIRenderEngine::DrawText(hDC, rc, m_text, m_textColor, \
 					m_fontId, m_textStyle);
     }
     else {
@@ -196,7 +196,7 @@ void UILabel::PaintText(HANDLE_DC hDC) {
             UIRenderEngine::DrawHtmlText(hDC, m_manager, rc, m_text, m_disabledTextColor, \
 					nullptr, nullptr, nLinks, m_fontId, m_textStyle);
         else
-            UIRenderEngine::DrawText(hDC, m_manager, rc, m_text, m_disabledTextColor, \
+            UIRenderEngine::DrawText(hDC, rc, m_text, m_disabledTextColor, \
 					m_fontId, m_textStyle);
     }
 

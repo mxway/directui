@@ -228,11 +228,11 @@ void UIEdit::PaintText(HANDLE_DC hDC) {
     rc.top += m_rcTextPadding.top;
     rc.bottom -= m_rcTextPadding.bottom;
     if( IsEnabled() ) {
-        UIRenderEngine::DrawText(hDC, m_manager, rc, sText, m_textColor, \
+        UIRenderEngine::DrawText(hDC, rc, sText, m_textColor, \
 				m_fontId, DT_SINGLELINE | m_textStyle);
     }
     else {
-        UIRenderEngine::DrawText(hDC, m_manager, rc, sText, m_disabledTextColor, \
+        UIRenderEngine::DrawText(hDC, rc, sText, m_disabledTextColor, \
 				m_fontId, DT_SINGLELINE | m_textStyle);
 
     }

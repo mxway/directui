@@ -13,7 +13,7 @@ public:
     static void DrawImage(HANDLE_DC hDC, HANDLE_BITMAP hBitmap, const RECT& rc, const RECT& rcPaint,
                           const RECT& rcBmpPart, const RECT& rcScale9, bool alpha, uint8_t uFade = 255,
                           bool hole = false, bool xtiled = false, bool ytiled = false);
-    static bool DrawImage(HANDLE_DC hdc, UIPaintManager* manager, const RECT& rcItem, const RECT& rcPaint,
+    static bool DrawImage(HANDLE_DC hdc,  const RECT& rcItem, const RECT& rcPaint,
                           TDrawInfo& drawInfo);
 
     static void DrawColor(HANDLE_DC hDC, const RECT& rc, uint32_t color);
@@ -23,7 +23,7 @@ public:
     static void DrawLine(HANDLE_DC hDC, const RECT& rc, int nSize, uint32_t dwPenColor, int nStyle);
     static void DrawRect(HANDLE_DC hDC, const RECT& rc, int nSize, uint32_t dwPenColor, int nStyle );
     static void DrawRoundRect(HANDLE_DC hDC, const RECT& rc, int radiusWeight, int radiusHeight, int nSize, uint32_t dwPenColor, int nStyle);
-    static void DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
+    static void DrawText(HANDLE_DC hDC, RECT& rc, const UIString &text, \
         uint32_t dwTextColor, int iFont, uint32_t uStyle);
     static void DrawText(HANDLE_DC hDC, RECT &rc, const UIString &text,
         uint32_t dwTextColor, HANDLE_FONT hFont, uint32_t ustyle);

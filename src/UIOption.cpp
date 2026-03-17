@@ -250,7 +250,7 @@ void UIOption::PaintText(HANDLE_DC hDC) {
             UIRenderEngine::DrawHtmlText(hDC, m_manager, rc, m_text, IsEnabled()?m_textColor:m_disabledTextColor, \
 				nullptr, nullptr, nLinks, m_fontId, m_textStyle);
         else
-            UIRenderEngine::DrawText(hDC, m_manager, rc, m_text, IsEnabled()?m_textColor:m_disabledTextColor, \
+            UIRenderEngine::DrawText(hDC, rc, m_text, IsEnabled()?m_textColor:m_disabledTextColor, \
 				m_fontId, m_textStyle);
 
         m_textColor = oldTextColor;

@@ -242,7 +242,7 @@ void UIControl::SetBorderRound(SIZE cxyRound) {
 }
 
 bool UIControl::DrawImage(HANDLE_DC hDC, TDrawInfo &drawInfo) {
-    return UIRenderEngine::DrawImage(hDC, m_manager, m_rcItem, m_rcPaint, drawInfo);
+    return UIRenderEngine::DrawImage(hDC, m_rcItem, m_rcPaint, drawInfo);
 }
 
 uint32_t UIControl::GetBorderColor() const {

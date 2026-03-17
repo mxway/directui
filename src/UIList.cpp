@@ -1751,7 +1751,7 @@ void UIListHeaderItem::PaintText(HANDLE_DC hDC) {
         UIRenderEngine::DrawHtmlText(hDC, m_manager, rcText, m_text, m_textColor, \
         nullptr, nullptr, nLinks, m_font, m_textStyle);
     else
-        UIRenderEngine::DrawText(hDC, m_manager, rcText, m_text, m_textColor, \
+        UIRenderEngine::DrawText(hDC, rcText, m_text, m_textColor, \
         m_font, m_textStyle);
 }
 
@@ -2158,7 +2158,7 @@ SIZE UIListLabelElement::EstimateSize(SIZE szAvailable) {
                     UIRenderEngine::DrawHtmlText(m_manager->GetPaintDC(), m_manager, rcText, m_text, 0, nullptr, nullptr, nLinks, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
                 }
                 else {
-                    UIRenderEngine::DrawText(m_manager->GetPaintDC(), m_manager, rcText, m_text, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
+                    UIRenderEngine::DrawText(m_manager->GetPaintDC(), rcText, m_text, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
                 }
                 m_cxyFixedLast.cx = rcText.right - rcText.left + pInfo->rcTextPadding.left + pInfo->rcTextPadding.right;
             }
@@ -2175,7 +2175,7 @@ SIZE UIListLabelElement::EstimateSize(SIZE szAvailable) {
                 UIRenderEngine::DrawHtmlText(m_manager->GetPaintDC(), m_manager, rcText, m_text, 0, nullptr, nullptr, nLinks, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
             }
             else {
-                UIRenderEngine::DrawText(m_manager->GetPaintDC(), m_manager, rcText, m_text, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
+                UIRenderEngine::DrawText(m_manager->GetPaintDC(), rcText, m_text, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
             }
             m_cxyFixedLast.cy = rcText.bottom - rcText.top + pInfo->rcTextPadding.top + pInfo->rcTextPadding.bottom;
         }
@@ -2216,7 +2216,7 @@ void UIListLabelElement::DrawItemText(HANDLE_DC hDC, const RECT &rcItem) {
         UIRenderEngine::DrawHtmlText(hDC, m_manager, rcText, m_text, iTextColor, \
         nullptr, nullptr, nLinks, pInfo->nFont, pInfo->textStyle);
     else
-        UIRenderEngine::DrawText(hDC, m_manager, rcText, m_text, iTextColor, \
+        UIRenderEngine::DrawText(hDC, rcText, m_text, iTextColor, \
         pInfo->nFont, pInfo->textStyle);
 }
 
@@ -2410,7 +2410,7 @@ SIZE UIListTextElement::EstimateSize(SIZE szAvailable) {
                     UIRenderEngine::DrawHtmlText(m_manager->GetPaintDC(), m_manager, rcText, strText, 0, nullptr, nullptr, nLinks, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
                 }
                 else {
-                    UIRenderEngine::DrawText(m_manager->GetPaintDC(), m_manager, rcText, strText, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
+                    UIRenderEngine::DrawText(m_manager->GetPaintDC(), rcText, strText, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
                 }
                 m_cxyFixedLast.cx = rcText.right - rcText.left + pInfo->rcTextPadding.left + pInfo->rcTextPadding.right;
             }
@@ -2427,7 +2427,7 @@ SIZE UIListTextElement::EstimateSize(SIZE szAvailable) {
                 UIRenderEngine::DrawHtmlText(m_manager->GetPaintDC(), m_manager, rcText, strText, 0, nullptr, nullptr, nLinks, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
             }
             else {
-                UIRenderEngine::DrawText(m_manager->GetPaintDC(), m_manager, rcText, strText, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
+                UIRenderEngine::DrawText(m_manager->GetPaintDC(), rcText, strText, 0, pInfo->nFont, DT_CALCRECT | pInfo->textStyle & ~DT_RIGHT & ~DT_CENTER);
             }
             m_cxyFixedLast.cy = rcText.bottom - rcText.top + pInfo->rcTextPadding.top + pInfo->rcTextPadding.bottom;
         }
@@ -2476,7 +2476,7 @@ void UIListTextElement::DrawItemText(HANDLE_DC hDC, const RECT &rc) {
                 UIRenderEngine::DrawHtmlText(hDC, m_manager, rcItem, strText, iTextColor, \
                 &m_rcLinks[m_links], &m_sLinks[m_links], nLinks, pInfo->nFont, pInfo->textStyle);
             else
-                UIRenderEngine::DrawText(hDC, m_manager, rcItem, strText, iTextColor, \
+                UIRenderEngine::DrawText(hDC, rcItem, strText, iTextColor, \
                 pInfo->nFont, pInfo->textStyle);
 
             m_links += nLinks;
@@ -2498,7 +2498,7 @@ void UIListTextElement::DrawItemText(HANDLE_DC hDC, const RECT &rc) {
             UIRenderEngine::DrawHtmlText(hDC, m_manager, rcItem, strText, iTextColor, \
             &m_rcLinks[m_links], &m_sLinks[m_links], nLinks, pInfo->nFont, pInfo->textStyle);
         else
-            UIRenderEngine::DrawText(hDC, m_manager, rcItem, strText, iTextColor, \
+            UIRenderEngine::DrawText(hDC, rcItem, strText, iTextColor, \
             pInfo->nFont, pInfo->textStyle);
 
         m_links += nLinks;

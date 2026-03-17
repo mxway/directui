@@ -4,8 +4,10 @@
 #include <cassert>
 #include <cstring>
 #include <UIRect.h>
-#include <UIPaintManager.h>
+#include <algorithm>
 #include "../include/UIResourceMgr.h"
+
+using namespace std;
 
 #define RES_TYPE_COLOR "*COLOR*"
 
@@ -82,12 +84,11 @@ uint32_t UIRenderEngine::AdjustColor(uint32_t color, short H, short S, short L) 
     return color;
 }
 
-bool UIRenderEngine::DrawImage(HANDLE_DC hdc, UIPaintManager *manager, const RECT &rcItem, const RECT &rcPaint,
+bool UIRenderEngine::DrawImage(HANDLE_DC hdc, const RECT &rcItem, const RECT &rcPaint,
                                TDrawInfo &drawInfo) {
     // 1、aaa.jpg
     // 2、file='aaa.jpg' res='' restype='0' dest='0,0,0,0' source='0,0,0,0' scale9='0,0,0,0'
     // mask='#FF0000' fade='255' hole='false' xtiled='false' ytiled='false' hsl='false'
-    if( manager == nullptr ) return true;
     if( drawInfo.pImageInfo == nullptr ) {
         if( drawInfo.bLoaded ) return false;
         drawInfo.bLoaded = true;
@@ -184,12 +185,6 @@ bool UIRenderEngine::DrawImage(HANDLE_DC hdc, UIPaintManager *manager, const REC
 
         const TImageInfo* data = nullptr;
         data = UIResourceMgr::GetInstance().GetImage(sImageName, true);
-        /*if(!bUseRes) {
-
-        }
-        else {
-            data = manager->GetImageEx(sImageName, sImageResType, dwMask, bUseHSL);
-        }*/
         if( !data ) return false;
 
         drawInfo.pImageInfo = data;

@@ -444,7 +444,7 @@ void UIButton::PaintText(HANDLE_DC hDC) {
         UIRenderEngine::DrawHtmlText(hDC, m_manager, rc, m_text, clrColor, \
 			nullptr, nullptr, nLinks, m_fontId, m_textStyle);
     else
-        UIRenderEngine::DrawText(hDC, m_manager, rc, m_text, clrColor, \
+        UIRenderEngine::DrawText(hDC, rc, m_text, clrColor, \
 			m_fontId, m_textStyle);
 }
 

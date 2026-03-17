@@ -423,7 +423,7 @@ void UIRenderEngine::DrawRoundRect(HANDLE_DC hDC, const RECT &rc, int radiusWeig
     //cairo_fill (hDC);
 }
 
-void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
+void UIRenderEngine::DrawText(HANDLE_DC hDC, RECT& rc, const UIString &text, \
         uint32_t dwTextColor, int fontId, uint32_t uStyle)
 {
     PangoFontDescription *FontDesc;
