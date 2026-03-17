@@ -426,8 +426,22 @@ void UIRenderEngine::DrawRoundRect(HANDLE_DC hDC, const RECT &rc, int radiusWeig
 void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
         uint32_t dwTextColor, int fontId, uint32_t uStyle)
 {
-    PangoLayout *Layout;
     PangoFontDescription *FontDesc;
+    UIFont  *font = UIResourceMgr::GetInstance().GetFont(fontId);
+    if (font){
+        FontDesc = (PangoFontDescription *) font->GetHandle();
+    }else{
+        FontDesc = (PangoFontDescription *)UIResourceMgr::GetInstance().GetDefaultFont()->GetHandle();
+    }
+    if (font && font->GetUnderline()) {
+        uStyle |= DT_UNDERLINE;
+    }
+    UIRenderEngine::DrawText(hDC, rc, text, dwTextColor, FontDesc, uStyle);
+}
+
+void UIRenderEngine::DrawText(HANDLE_DC hDC, RECT& rc, const UIString& text, uint32_t dwTextColor, HANDLE_FONT hFont, uint32_t uStyle) {
+
+    PangoLayout *Layout;
     int nFixY = rc.top;
     int nWidth = rc.right - rc.left;
     int nHeight = rc.bottom - rc.top;
@@ -461,22 +475,10 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
                          UIGetBValue(dwTextColor)/255.0);
 
     //
-    // get font from resource manager
-    //
-
-    UIFont  *font = UIResourceMgr::GetInstance().GetFont(fontId);
-    if (font){
-        FontDesc = (PangoFontDescription *) font->GetHandle();
-    }else{
-        FontDesc = (PangoFontDescription *)UIResourceMgr::GetInstance().GetDefaultFont()->GetHandle();
-    }
-
-
-    //
     // set font to layout
     //
 
-    pango_layout_set_font_description(Layout, FontDesc);
+    pango_layout_set_font_description(Layout, hFont);
 
     //
     // set alignment
@@ -509,7 +511,7 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
 
     bool shouldReleaseAttrList = false;
     PangoAttrList  *attrList = pango_layout_get_attributes(Layout);
-    if(font->GetUnderline()){
+    if((uStyle & DT_UNDERLINE)){
         if(attrList == nullptr){
             attrList = pango_attr_list_new();
             shouldReleaseAttrList = true;

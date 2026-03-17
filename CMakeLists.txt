@@ -3,7 +3,7 @@ project(directui)
 
 set(CMAKE_CXX_STANDARD 11)
 
-option(GTK_BACKEND "Gtk backend is option" ON)
+option(GTK_BACKEND "Gtk backend is option" OFF)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     FILE(GLOB BACKEND_SRC_FILES "backend/win32/*.cpp")

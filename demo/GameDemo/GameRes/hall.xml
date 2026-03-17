@@ -70,7 +70,7 @@
     						<Control height="4" />
     						<Text name="sysmsg" height="90" text="系统公告栏" showhtml="true" bkcolor="#FFFFE8B1" />
     						<Control height="4" />
-							<RichEdit name="chatmsglist" inset="4,2,4,2" bkcolor="#FFFFE8B1" bkcolor2="#FFF2F5FA" bkcolor3="#FFFFE8B1" multiline="true" vscrollbar="true" autovscroll="true" enabled="true" rich="true" readonly="true" />
+							<RichEdit name="chatmsglist" textcolor="#FFFF0000" inset="4,2,4,2" bkcolor="#FFFFE8B1" bkcolor2="#FFF2F5FA" bkcolor3="#FFFFE8B1" multiline="true" vscrollbar="true" autovscroll="true" enabled="true" rich="true" readonly="true" />
     						<Control height="4" />
     						<HorizontalLayout height="36" inset="2,2,2,2" bkcolor="#FF92DAFD" bkcolor2="#FF74BDF2">
     						    <Container>

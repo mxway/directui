@@ -10,6 +10,9 @@ public:
     void    OnFinalMessage(HANDLE_WND )override{delete this;}
     void    Init();
     void    OnPrepare();
+
+    void SendChatMessage();
+
     void    Notify(TNotifyUI &msg)override;
     UIString GetItemText(UIControl *pList,int iItem, int iSubItem)override;
 

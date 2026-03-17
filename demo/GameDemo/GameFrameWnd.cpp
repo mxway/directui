@@ -4,6 +4,8 @@
 #include "../../include/UITabLayout.h"
 #include <UIResourceMgr.h>
 
+#include "UIRichEdit.h"
+
 void GameFrameWnd::Init() {
     m_closeBtn = dynamic_cast<UIButton*>(m_pm.FindControl("closebtn"));
     m_maxBtn = dynamic_cast<UIButton*>(m_pm.FindControl("maxbtn"));
@@ -103,6 +105,8 @@ void GameFrameWnd::Notify(TNotifyUI &msg) {
                 pControl = static_cast<UIOption*>(m_pm.FindControl("roomswitch"));
                 if( pControl ) pControl->SetVisible(false);
             }
+        }else if (name == "sendbtn") {
+            SendChatMessage();
         }
     }
     else if( msg.sType == "selectchanged" ) {
@@ -117,22 +121,17 @@ void GameFrameWnd::Notify(TNotifyUI &msg) {
                 pControl->SelectItem(1);
                 UIDeskList* pDeskList = static_cast<UIDeskList*>(m_pm.FindControl("destlist"));
                 pDeskList->SetFocus();
-#if 0
-                CRichEditUI* pRichEdit = static_cast<CRichEditUI*>(m_pm.FindControl("chatmsglist"));
+                //TextRun     textRun;
+
+                UIRichEdit* pRichEdit = static_cast<UIRichEdit*>(m_pm.FindControl("chatmsglist"));
                 if( pRichEdit ) {
-                    pRichEdit->SetText(_T("欢迎进入XXX游戏，祝游戏愉快！\n\n"));
-                    long lSelBegin = 0, lSelEnd = 0;
-                    CHARFORMAT2 cf;
-                    ZeroMemory(&cf, sizeof(CHARFORMAT2));
-                    cf.cbSize = sizeof(cf);
-                    cf.dwReserved = 0;
-                    cf.dwMask = CFM_COLOR;
-                    cf.crTextColor = RGB(255, 0, 0);
-                    lSelEnd = pRichEdit->GetTextLength();
-                    pRichEdit->SetSel(lSelBegin, lSelEnd);
-                    pRichEdit->SetSelectionCharFormat(cf);
+                    shared_ptr<TextRun> textRun = make_shared<TextRun>();
+                    textRun->SetText(UIString("欢迎进入XXX游戏，祝游戏愉快！\n"));
+                    textRun->SetTextColor(0xffff0000);
+                    Paragraph   paragraph;
+                    paragraph.AppendRun(textRun);
+                    pRichEdit->AppendParagraph(paragraph);
                 }
-#endif
             }
         }
     }
@@ -178,6 +177,41 @@ void GameFrameWnd::Notify(TNotifyUI &msg) {
             dynamic_cast<UICombo*>(msg.pSender)->SelectItem(-1);
         }
     }
+}
+
+void GameFrameWnd::SendChatMessage() {
+    UIEdit* pChatEdit = static_cast<UIEdit*>(m_pm.FindControl("chatEdit"));
+    if( pChatEdit == NULL ) return;
+    pChatEdit->SetFocus();
+    if( pChatEdit->GetText().IsEmpty() ) return;
+
+    UIRichEdit* pRichEdit = static_cast<UIRichEdit*>(m_pm.FindControl("chatmsglist"));
+    if( pRichEdit == NULL ) return;
+    shared_ptr<ImageRun>    imageRun = make_shared<ImageRun>();
+    imageRun->id = u8"user.png";
+    imageRun->width = 16;
+    imageRun->height = 16;
+    shared_ptr<TextRun> somebodyTextRun = make_shared<TextRun>();
+    somebodyTextRun->SetText(UIString{u8"某人"});
+    somebodyTextRun->SetTextColor(0xffdc0000);
+
+    shared_ptr<TextRun>  sayTextRun =make_shared<TextRun>();
+    sayTextRun->SetText(UIString{u8"说:"});
+    sayTextRun->SetTextColor(0xff00dc00);
+    sayTextRun->SetBold(true);
+    sayTextRun->SetFontSize(20);
+
+    shared_ptr<TextRun> contentTextRun = make_shared<TextRun>();
+    contentTextRun->SetText(pChatEdit->GetText());
+    pChatEdit->SetText(UIString{""});
+    contentTextRun->SetTextColor(0xff000000);
+
+    Paragraph   paragraph;
+    paragraph.AppendRun(imageRun);
+    paragraph.AppendRun(somebodyTextRun);
+    paragraph.AppendRun(sayTextRun);
+    paragraph.AppendRun(contentTextRun);
+    pRichEdit->AppendParagraph(paragraph);
 }
 
 UIString GameFrameWnd::GetItemText(UIControl *pList, int iItem, int iSubItem) {

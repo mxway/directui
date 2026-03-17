@@ -20,6 +20,7 @@
 #include <UIList.h>
 #include <UICombo.h>
 #include <UITreeView.h>
+#include <UIRichEdit.h>
 #include "SkinFileReaderService.h"
 
 typedef UIControl* (*LPCREATECONTROL)(const char *pstrType);
@@ -320,7 +321,7 @@ UIControl *UIDlgBuilder::_Parse(tinyxml2::XMLElement *parent, UIControl *pParent
                         pControl = new UIProgress;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_RICHEDIT) == 0 ){
-                        //pControl = new CRichEditUI;
+                        pControl = new UIRichEdit;
                     }
                     else if( strcasecmp(pstrClass, DUI_CTR_CHECKBOX) == 0 ){
                         pControl = new UICheckbox;

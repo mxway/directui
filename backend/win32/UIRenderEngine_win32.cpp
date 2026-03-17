@@ -713,7 +713,7 @@ void UIRenderEngine::DrawRoundRect(HANDLE_DC hDC, const RECT &rc, int width, int
 void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
         uint32_t dwTextColor, int iFont, uint32_t uStyle)
 {
-    assert(::GetObjectType(hDC)==OBJ_DC || ::GetObjectType(hDC)==OBJ_MEMDC);
+    /*assert(::GetObjectType(hDC)==OBJ_DC || ::GetObjectType(hDC)==OBJ_MEMDC);
     if( text.IsEmpty() || pManager == NULL ) return;
 
     //CDuiString sText = pstrText;
@@ -724,6 +724,22 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
     ::SetBkMode(hDC, TRANSPARENT);
     ::SetTextColor(hDC, RGB(GetBValue(dwTextColor), GetGValue(dwTextColor), GetRValue(dwTextColor)));
     HFONT hOldFont = (HFONT)::SelectObject(hDC, UIResourceMgr::GetInstance().GetFont(iFont)->GetHandle());
+    ::DrawTextW(hDC, wideText, -1, &rc, uStyle | DT_NOPREFIX);
+    ::SelectObject(hDC, hOldFont);
+    delete []wideText;*/
+    HANDLE_FONT hFont = UIResourceMgr::GetInstance().GetFont(iFont)->GetHandle();
+    UIRenderEngine::DrawText(hDC, rc, text, dwTextColor, hFont, uStyle);
+}
+
+void UIRenderEngine::DrawText(HANDLE_DC hDC, RECT& rc, const UIString& text, uint32_t dwTextColor, HANDLE_FONT hFont, uint32_t uStyle) {
+    assert(::GetObjectType(hDC)==OBJ_DC || ::GetObjectType(hDC)==OBJ_MEMDC);
+    if( text.IsEmpty() ) return;
+
+    wchar_t *wideText = Utf8ToUcs2(text.GetData(),-1);
+
+    ::SetBkMode(hDC, TRANSPARENT);
+    ::SetTextColor(hDC, RGB(GetBValue(dwTextColor), GetGValue(dwTextColor), GetRValue(dwTextColor)));
+    HFONT hOldFont = (HFONT)::SelectObject(hDC, hFont);
     ::DrawTextW(hDC, wideText, -1, &rc, uStyle | DT_NOPREFIX);
     ::SelectObject(hDC, hOldFont);
     delete []wideText;

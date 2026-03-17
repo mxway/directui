@@ -447,6 +447,20 @@ void UIRenderEngine::DrawRoundRect(HANDLE_DC hDC, const RECT &rc, int radiusWeig
 void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
         uint32_t dwTextColor, int fontId, uint32_t uStyle)
 {
+    PangoFontDescription *FontDesc;
+    UIFont  *font = UIResourceMgr::GetInstance().GetFont(fontId);
+    if (font){
+        FontDesc = (PangoFontDescription *) font->GetHandle();
+    }else{
+        FontDesc = (PangoFontDescription *)UIResourceMgr::GetInstance().GetDefaultFont()->GetHandle();
+    }
+    if (font && font->GetUnderline()) {
+        uStyle |= DT_UNDERLINE;
+    }
+    UIRenderEngine::DrawText(hDC, rc, text, dwTextColor, FontDesc, uStyle);
+}
+
+void UIRenderEngine::DrawText(HANDLE_DC hDC, RECT& rc, const UIString& text, uint32_t dwTextColor, HANDLE_FONT hFont, uint32_t uStyle) {
     int nFixY = rc.top;
     int nWidth = rc.right - rc.left;
     int nHeight = rc.bottom - rc.top;
@@ -456,7 +470,6 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
 
     // 创建 Pango 布局对象
     PangoLayout *layout = pango_layout_new(context);
-    PangoFontDescription *FontDesc;
 
     Region region = XCreateRegion();
     XRectangle  regionRect = {static_cast<short>(rc.left),
@@ -468,14 +481,7 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
     // 设置文本内容
     pango_layout_set_text(layout, text.GetData(), text.GetLength());
 
-    UIFont  *font = UIResourceMgr::GetInstance().GetFont(fontId);
-    if (font){
-        FontDesc = (PangoFontDescription *) font->GetHandle();
-    }else{
-        FontDesc = (PangoFontDescription *)UIResourceMgr::GetInstance().GetDefaultFont()->GetHandle();
-    }
-
-    pango_layout_set_font_description(layout, FontDesc);
+    pango_layout_set_font_description(layout, hFont);
 
     if(uStyle & DT_CALCRECT){
         int width = 0;
@@ -519,7 +525,7 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc,
 
     bool shouldReleaseAttrList = false;
     PangoAttrList  *attrList = pango_layout_get_attributes(layout);
-    if(font->GetUnderline()){
+    if( (uStyle & DT_UNDERLINE) ){
         if(attrList == nullptr){
             attrList = pango_attr_list_new();
             shouldReleaseAttrList = true;

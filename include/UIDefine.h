@@ -85,6 +85,7 @@ inline const char* CharPrev(const char *start, const char *current)
 #define DT_SINGLELINE       0x00000080
 #define DT_CALCRECT         0x00000400
 #define DT_END_ELLIPSIS     0x00008000
+#define DT_UNDERLINE        0x00010000
 
 /*
      * Key State Masks for Mouse Messages

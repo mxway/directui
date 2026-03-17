@@ -25,6 +25,8 @@ public:
     static void DrawRoundRect(HANDLE_DC hDC, const RECT& rc, int radiusWeight, int radiusHeight, int nSize, uint32_t dwPenColor, int nStyle);
     static void DrawText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text, \
         uint32_t dwTextColor, int iFont, uint32_t uStyle);
+    static void DrawText(HANDLE_DC hDC, RECT &rc, const UIString &text,
+        uint32_t dwTextColor, HANDLE_FONT hFont, uint32_t ustyle);
     static void DrawHtmlText(HANDLE_DC hDC, UIPaintManager* pManager, RECT& rc, const UIString &text,
                              uint32_t dwTextColor, RECT* pLinks, UIString* sLinks, int& nLinkRects, int iDefaultFont, uint32_t uStyle);
 
