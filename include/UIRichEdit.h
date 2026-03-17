@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <UIScrollBar.h>
 
 #include "UIRect.h"
 
@@ -184,6 +185,16 @@ public:
 
     void SetText(const UIString& text) override;
 
+    void SetPos(RECT rc, bool bNeedInvalidate = true) override;
+
+    void SetManager(UIPaintManager* pManager, UIControl* pParent, bool bInit = true) override;
+
+    void DoEvent(TEventUI& event) override;
+
+    void SetAttribute(const char* pstrName, const char* pstrValue) override;
+
+    bool DoPaint(HANDLE_DC hDC, const RECT& rcPaint, UIControl* pStopControl) override;
+
     void PaintText(HANDLE_DC hDC) override;
 
     SIZE EstimateSize(SIZE szAvailable) override;
@@ -193,10 +204,23 @@ public:
 private:
     void    DoIncrementalRelayout(HANDLE_DC hDC);
     int     LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY);
+    RECT    GetTextViewRect() const;
+    int     GetTextViewWidth() const;
+    void    EnsureVerticalScrollBar();
+    void    UpdateVerticalScrollBar();
+    void    SyncScrollFromBar();
+    void    MarkLayoutDirty();
     //void    CommitLine(ParagraphLayout& pl, LineLayout& line, int& cursorY);
 protected:
     RichDocument m_document;
     RichDocumentLayout m_documentLayouts;
+    UIScrollBar* m_pVerticalScrollBar;
+    bool m_enableVerticalScrollBar;
+    bool m_verticalScrollCaptured;
+    int m_contentHeight;
+    bool m_layoutDirty;
+    int m_lastLayoutWidth;
+    UIString m_vScrollBarStyle;
 };
 
 #endif //DIRECTUI_UIRICHEDIT_H

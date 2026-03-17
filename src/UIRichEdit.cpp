@@ -1,6 +1,9 @@
 #include <UIRichEdit.h>
 #include "UIRichEditInternal_impl.h"
 #include "UIRenderEngine.h"
+#include "UIPaintManager.h"
+#include "UIRenderClip.h"
+#include <cstring>
 
 void SetSegmentRect(UIRect& rect, int left, int top, int right, int bottom) {
     rect.left = left;
@@ -10,9 +13,19 @@ void SetSegmentRect(UIRect& rect, int left, int top, int right, int bottom) {
 }
 
 UIRichEdit::UIRichEdit() {
+    m_pVerticalScrollBar = nullptr;
+    m_enableVerticalScrollBar = false;
+    m_verticalScrollCaptured = false;
+    m_contentHeight = 0;
+    m_layoutDirty = true;
+    m_lastLayoutWidth = -1;
 }
 
 UIRichEdit::~UIRichEdit() {
+    if (m_pVerticalScrollBar != nullptr) {
+        m_pVerticalScrollBar->Delete();
+        m_pVerticalScrollBar = nullptr;
+    }
 }
 
 UIString UIRichEdit::GetClass() const {
@@ -34,7 +47,181 @@ void UIRichEdit::SetText(const UIString& text) {
     textRun->style.textColor = m_textColor;
     paragraph.AppendRun(textRun);
     m_document.AppendParagraph(paragraph);
+    m_documentLayouts.documentLayouts.assign(m_document.GetParagraphCount(), ParagraphLayout());
+    m_layoutDirty = true;
+    SyncScrollFromBar();
     Invalidate();
+}
+
+int UIRichEdit::GetTextViewWidth() const {
+    const RECT rc = GetTextViewRect();
+    return std::max(0, static_cast<int>(rc.right - rc.left));
+}
+
+void UIRichEdit::MarkLayoutDirty() {
+    m_layoutDirty = true;
+    for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
+        m_documentLayouts.documentLayouts[i].dirty = true;
+    }
+}
+
+RECT UIRichEdit::GetTextViewRect() const {
+    RECT rc = m_rcItem;
+    rc.left += m_rcTextPadding.left;
+    rc.top += m_rcTextPadding.top;
+    rc.right -= m_rcTextPadding.right;
+    rc.bottom -= m_rcTextPadding.bottom;
+    if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
+        rc.right -= m_pVerticalScrollBar->GetFixedWidth();
+    }
+    if (rc.right < rc.left) rc.right = rc.left;
+    if (rc.bottom < rc.top) rc.bottom = rc.top;
+    return rc;
+}
+
+void UIRichEdit::EnsureVerticalScrollBar() {
+    if (m_pVerticalScrollBar != nullptr) {
+        return;
+    }
+    m_pVerticalScrollBar = new UIScrollBar();
+    m_pVerticalScrollBar->SetScrollRange(0);
+    m_pVerticalScrollBar->SetVisible(false);
+    // Keep scrollbar event bubbling detached; UIRichEdit forwards needed events explicitly.
+    m_pVerticalScrollBar->SetManager(m_manager, nullptr, false);
+    if (m_manager) {
+        const char* defaultAttr = m_manager->GetDefaultAttributeList("VScrollBar");
+        if (defaultAttr) {
+            m_pVerticalScrollBar->SetAttributeList(defaultAttr);
+        }
+    }
+    if (!m_vScrollBarStyle.IsEmpty()) {
+        m_pVerticalScrollBar->SetAttributeList(m_vScrollBarStyle.GetData());
+    }
+}
+
+void UIRichEdit::SyncScrollFromBar() {
+    if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
+        m_pVerticalScrollBar->SetScrollPos(0, false);
+    }
+}
+
+void UIRichEdit::UpdateVerticalScrollBar() {
+    if (!m_enableVerticalScrollBar || m_pVerticalScrollBar == nullptr) {
+        m_contentHeight = 0;
+        return;
+    }
+
+    const RECT viewRc = GetTextViewRect();
+    const int viewHeight = std::max(0, static_cast<int>(viewRc.bottom - viewRc.top));
+    const int scrollRange = std::max(0, m_contentHeight - viewHeight);
+    const bool needVisible = scrollRange > 0;
+
+    m_pVerticalScrollBar->SetVisible(needVisible);
+    m_pVerticalScrollBar->SetScrollRange(scrollRange);
+    if (!needVisible) {
+        m_pVerticalScrollBar->SetScrollPos(0, false);
+    }
+
+    RECT rcScroll = m_rcItem;
+    rcScroll.left = rcScroll.right - m_pVerticalScrollBar->GetFixedWidth();
+    m_pVerticalScrollBar->SetPos(rcScroll, false);
+}
+
+void UIRichEdit::SetPos(RECT rc, bool bNeedInvalidate) {
+    const int oldWidth = GetTextViewWidth();
+    UILabel::SetPos(rc, bNeedInvalidate);
+    if (m_pVerticalScrollBar) {
+        RECT rcScroll = m_rcItem;
+        rcScroll.left = rcScroll.right - m_pVerticalScrollBar->GetFixedWidth();
+        m_pVerticalScrollBar->SetPos(rcScroll, false);
+    }
+    if (oldWidth != GetTextViewWidth()) {
+        MarkLayoutDirty();
+    }
+}
+
+void UIRichEdit::SetManager(UIPaintManager* pManager, UIControl* pParent, bool bInit) {
+    if (m_pVerticalScrollBar) {
+        m_pVerticalScrollBar->SetManager(pManager, nullptr, bInit);
+    }
+    UILabel::SetManager(pManager, pParent, bInit);
+}
+
+void UIRichEdit::DoEvent(TEventUI& event) {
+    if (event.Type == UIEVENT_SCROLLWHEEL && m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
+        int pos = m_pVerticalScrollBar->GetScrollPos();
+        const int line = std::max(1, m_pVerticalScrollBar->GetLineSize());
+        switch (LOWORD(event.wParam)) {
+            case SB_LINEUP:
+                m_pVerticalScrollBar->SetScrollPos(pos - line, false);
+                Invalidate();
+                return;
+            case SB_LINEDOWN:
+                m_pVerticalScrollBar->SetScrollPos(pos + line, false);
+                Invalidate();
+                return;
+            default:
+                break;
+        }
+    }
+
+    if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
+        if (!m_pVerticalScrollBar->IsMouseEnabled()) {
+            UILabel::DoEvent(event);
+            return;
+        }
+        UIRect rcScroll{m_pVerticalScrollBar->GetPos()};
+        const bool hitScroll = rcScroll.IsPtIn(event.ptMouse);
+        const bool downEvent = (event.Type == UIEVENT_BUTTONDOWN || event.Type == UIEVENT_DBLCLICK);
+        if (downEvent && hitScroll) {
+            m_verticalScrollCaptured = true;
+            m_pVerticalScrollBar->DoEvent(event);
+            Invalidate();
+            return;
+        }
+        if (m_verticalScrollCaptured && (event.Type == UIEVENT_MOUSEMOVE || event.Type == UIEVENT_BUTTONUP)) {
+            m_pVerticalScrollBar->DoEvent(event);
+            if (event.Type == UIEVENT_BUTTONUP) {
+                m_verticalScrollCaptured = false;
+            }
+            Invalidate();
+            return;
+        }
+        if (hitScroll && event.Type == UIEVENT_MOUSEMOVE) {
+            m_pVerticalScrollBar->DoEvent(event);
+            return;
+        }
+    }
+
+    UILabel::DoEvent(event);
+}
+
+void UIRichEdit::SetAttribute(const char* pstrName, const char* pstrValue) {
+    if (strcasecmp(pstrName, "vscrollbar") == 0) {
+        m_enableVerticalScrollBar = (strcasecmp(pstrValue, "true") == 0);
+        if (m_enableVerticalScrollBar) {
+            EnsureVerticalScrollBar();
+        } else if (m_pVerticalScrollBar) {
+            m_pVerticalScrollBar->SetVisible(false);
+            m_pVerticalScrollBar->SetScrollPos(0, false);
+            m_pVerticalScrollBar->SetScrollRange(0);
+        }
+        MarkLayoutDirty();
+        Invalidate();
+        return;
+    }
+    if (strcasecmp(pstrName, "vscrollbarstyle") == 0) {
+        m_vScrollBarStyle = UIString{pstrValue};
+        m_enableVerticalScrollBar = true;
+        EnsureVerticalScrollBar();
+        if (m_pVerticalScrollBar) {
+            m_pVerticalScrollBar->SetAttributeList(pstrValue);
+        }
+        MarkLayoutDirty();
+        Invalidate();
+        return;
+    }
+    UILabel::SetAttribute(pstrName, pstrValue);
 }
 
 void CommitLine(ParagraphLayout& pl, LineLayout& line, int& cursorY) {
@@ -201,8 +388,9 @@ int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY) {
     pl.lines.clear();
 
     Paragraph& para = m_document.GetParagraphAt(pIndex);
-    int contentX = m_rcItem.left + m_rcTextPadding.left;
-    int contentW = std::max(12, (int)(m_rcItem.right - m_rcItem.left - m_rcTextPadding.left - m_rcTextPadding.right));
+    RECT viewRc = GetTextViewRect();
+    int contentX = viewRc.left;
+    int contentW = std::max(12, static_cast<int>(viewRc.right - viewRc.left));
 
     int cursorY = startY;
     int cursorX = contentX;
@@ -306,34 +494,110 @@ static const ImageRun* GetImageRun(Paragraph& para, size_t runIndex) {
 }
 
 void UIRichEdit::PaintText(HANDLE_DC hDC) {
-    m_documentLayouts.documentLayouts.assign(m_document.GetParagraphCount(), ParagraphLayout());
-    DoIncrementalRelayout(hDC);
+    const size_t paragraphCount = m_document.GetParagraphCount();
+    if (m_documentLayouts.documentLayouts.size() != paragraphCount) {
+        m_documentLayouts.documentLayouts.assign(paragraphCount, ParagraphLayout());
+        m_layoutDirty = true;
+    }
+
+    const bool oldScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+    const int currentWidth = GetTextViewWidth();
+    if (currentWidth != m_lastLayoutWidth) {
+        MarkLayoutDirty();
+    }
+
+    if (m_layoutDirty) {
+        DoIncrementalRelayout(hDC);
+        m_layoutDirty = false;
+        m_lastLayoutWidth = currentWidth;
+    }
+
+    const int docTop = m_rcItem.top + m_rcTextPadding.top;
+    int docBottom = docTop;
+    for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
+        ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
+        docBottom = std::max(docBottom, pl.startY + pl.height);
+    }
+    m_contentHeight = std::max(0, docBottom - docTop);
+    UpdateVerticalScrollBar();
+
+    const bool newScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+    if (oldScrollVisible != newScrollVisible) {
+        MarkLayoutDirty();
+        DoIncrementalRelayout(hDC);
+        m_layoutDirty = false;
+        m_lastLayoutWidth = GetTextViewWidth();
+        docBottom = docTop;
+        for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
+            ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
+            docBottom = std::max(docBottom, pl.startY + pl.height);
+        }
+        m_contentHeight = std::max(0, docBottom - docTop);
+        UpdateVerticalScrollBar();
+    }
+
+    const int scrollY = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) ? m_pVerticalScrollBar->GetScrollPos() : 0;
+    RECT viewRc = GetTextViewRect();
+    UIRenderClip clip;
+    UIRenderClip::GenerateClip(hDC, viewRc, clip);
+    std::vector<Paragraph>& paragraphs = m_document.GetParagraphs();
+
     for (size_t p=0; p<m_documentLayouts.documentLayouts.size(); ++p) {
         ParagraphLayout& pl = m_documentLayouts.documentLayouts[p];
-        //if (pBot < viewTop || pTop > viewBottom) continue;
+        const int pTop = pl.startY - scrollY;
+        const int pBottom = pTop + pl.height;
+        if (pBottom < viewRc.top || pTop > viewRc.bottom) {
+            continue;
+        }
         for (size_t li = 0; li<pl.lines.size(); ++li) {
             LineLayout& lineLayout = pl.lines[li];
-            //if (lBot < viewTop || lTop > viewBottom)continue;
+            const int lTop = lineLayout.yTop - scrollY;
+            const int lBottom = lTop + lineLayout.height;
+            if (lBottom < viewRc.top || lTop > viewRc.bottom) {
+                continue;
+            }
             for (size_t si=0;si<lineLayout.segs.size();++si) {
                 InlineSegment &seg = lineLayout.segs[si];
+                UIRect drawRc{seg.rc};
+                drawRc.Offset(0, -scrollY);
+                if (drawRc.bottom < viewRc.top || drawRc.top > viewRc.bottom) {
+                    continue;
+                }
                 if (seg.segType == SEG_TEXT) {
-                    DrawTextSegment(hDC,p, seg,m_document.GetParagraphs());
+                    InlineSegment drawSeg = seg;
+                    drawSeg.rc = drawRc;
+                    DrawTextSegment(hDC,p, drawSeg,paragraphs);
                 }else {
-                    if (p >= m_document.GetParagraphs().size()) {
+                    if (p >= paragraphs.size()) {
                         continue;
                     }
-                    Paragraph& para = m_document.GetParagraphs()[p];
+                    Paragraph& para = paragraphs[p];
                     const ImageRun* imageRun = GetImageRun(para, seg.runIndex);
                     if (!imageRun) {
                         continue;
                     }
                     TDrawInfo info;
                     info.sDrawString = UIString{imageRun->id.c_str()};
-                    UIRenderEngine::DrawImage(hDC ,seg.rc,m_rcPaint,info);
+                    UIRenderEngine::DrawImage(hDC ,drawRc,m_rcPaint,info);
                 }
             }
         }
     }
+}
+
+bool UIRichEdit::DoPaint(HANDLE_DC hDC, const RECT& rcPaint, UIControl* pStopControl) {
+    if (!UIControl::DoPaint(hDC, rcPaint, pStopControl)) {
+        return false;
+    }
+    if (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
+        RECT rcTemp = {0};
+        if (::UIIntersectRect(&rcTemp, &rcPaint, &m_pVerticalScrollBar->GetPos())) {
+            if (!m_pVerticalScrollBar->Paint(hDC, rcPaint, pStopControl)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 SIZE UIRichEdit::EstimateSize(SIZE szAvailable) {
@@ -342,5 +606,7 @@ SIZE UIRichEdit::EstimateSize(SIZE szAvailable) {
 
 void UIRichEdit::AppendParagraph(const Paragraph& paragraph) {
     m_document.AppendParagraph(paragraph);
+    m_documentLayouts.documentLayouts.assign(m_document.GetParagraphCount(), ParagraphLayout());
+    m_layoutDirty = true;
     Invalidate();
 }
