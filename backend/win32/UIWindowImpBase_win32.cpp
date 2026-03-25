@@ -24,19 +24,19 @@ static long OnNcHitTest(HANDLE_WND hWnd, UIPaintManager *paintManager, uint32_t 
     return HTCLIENT;
 }
 
-static long OnGetMinMaxInfo(HANDLE_WND wndHandle, uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool bHandled)
+static long OnGetMinMaxInfo(HANDLE_WND wndHandle, uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled)
 {
     MONITORINFO  monitorinfo = {0};
     monitorinfo.cbSize = sizeof(MONITORINFO);
-    ::GetMonitorInfoW(::MonitorFromWindow(wndHandle,MONITOR_DEFAULTTOPRIMARY), &monitorinfo);
+    ::GetMonitorInfoW(::MonitorFromWindow(wndHandle,MONITOR_DEFAULTTONEAREST), &monitorinfo);
     UIRect  rcWork{monitorinfo.rcWork};
-    rcWork.Offset(-monitorinfo.rcMonitor.left, -monitorinfo.rcMonitor.top);
+    //rcWork.Offset(-monitorinfo.rcMonitor.left, -monitorinfo.rcMonitor.top);
     auto  lpMMI = (LPMINMAXINFO)lParam;
-    lpMMI->ptMaxPosition.x = rcWork.left;
-    lpMMI->ptMaxPosition.y = rcWork.top;
-    lpMMI->ptMaxSize.x     = rcWork.right;
-    lpMMI->ptMaxSize.y     = rcWork.bottom;
-    bHandled = false;
+    lpMMI->ptMaxPosition.x = rcWork.left - monitorinfo.rcMonitor.left;
+    lpMMI->ptMaxPosition.y = rcWork.top - monitorinfo.rcMonitor.top;
+    lpMMI->ptMaxSize.x     = rcWork.right - rcWork.left;
+    lpMMI->ptMaxSize.y     = rcWork.bottom - rcWork.top;
+    bHandled = true;
     return 0;
 }
 

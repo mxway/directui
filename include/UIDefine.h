@@ -360,6 +360,16 @@ typedef struct tagTEventUI
 
 #define SCROLLBAR_LINESIZE      8
 
+#ifdef _MSC_VER
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
+#endif
+
 #ifndef CLAMP
 #define MAX std::max
 #define MIN std::min
