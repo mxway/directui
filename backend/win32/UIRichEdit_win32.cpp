@@ -1,6 +1,45 @@
-#include <UIRichEdit.h>
+﻿#include <UIRichEdit.h>
 #include "EncodingTransform.h"
 #include "../../src/UIRichEditInternal_impl.h"
+#include <unordered_map>
+
+namespace {
+struct TextStyleKey {
+    int fontSize;
+    bool bold;
+    bool italic;
+    std::wstring fontFamily;
+
+    bool operator==(const TextStyleKey& other) const {
+        return fontSize == other.fontSize &&
+               bold == other.bold &&
+               italic == other.italic &&
+               fontFamily == other.fontFamily;
+    }
+};
+
+struct TextStyleKeyHash {
+    size_t operator()(const TextStyleKey& key) const {
+        size_t h = std::hash<int>{}(key.fontSize);
+        h ^= (std::hash<bool>{}(key.bold) << 1);
+        h ^= (std::hash<bool>{}(key.italic) << 2);
+        h ^= (std::hash<std::wstring>{}(key.fontFamily) << 3);
+        return h;
+    }
+};
+
+HFONT GetCachedFont(const TextStyle& style) {
+    static std::unordered_map<TextStyleKey, HFONT, TextStyleKeyHash> s_fontCache;
+    TextStyleKey key{style.fontSize, style.bold, style.italic, style.fontFamily};
+    auto it = s_fontCache.find(key);
+    if (it != s_fontCache.end()) {
+        return it->second;
+    }
+    HFONT font = CreateFontFromStyle(style);
+    s_fontCache.emplace(std::move(key), font);
+    return font;
+}
+}
 
 void TextRun::SetFontFamily(const UIString& fontFamily) {
     wchar_t *ucs2String = Utf8ToUcs2(fontFamily.GetData(), fontFamily.GetLength());
@@ -55,17 +94,56 @@ HANDLE_FONT CreateFontFromStyle(const TextStyle& s) {
 }
 
 int MeasureTextWidth(HANDLE_DC hdc, const TextStyle& st, const std::wstring& text) {
-    HFONT f = CreateFontFromStyle(st);
+    HFONT f = GetCachedFont(st);
     HFONT old = (HFONT)SelectObject(hdc, f);
     SIZE sz{};
     if (!text.empty()) GetTextExtentPoint32W(hdc, text.c_str(), (int)text.size(), &sz);
     SelectObject(hdc, old);
-    DeleteObject(f);
     return sz.cx;
 }
 
+int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length) {
+    if (text == nullptr || length <= 0) {
+        return 0;
+    }
+    HFONT f = GetCachedFont(st);
+    HFONT old = (HFONT)SelectObject(hdc, f);
+    SIZE sz{};
+    GetTextExtentPoint32W(hdc, text, length, &sz);
+    SelectObject(hdc, old);
+    return sz.cx;
+}
+
+int GetTextFitCount(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth) {
+    return GetTextFitMetrics(hdc, st, text, length, maxWidth, nullptr);
+}
+
+int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth,
+                      int* fitWidth) {
+    if (text == nullptr || length <= 0 || maxWidth <= 0) {
+        if (fitWidth) {
+            *fitWidth = 0;
+        }
+        return 0;
+    }
+    HFONT f = GetCachedFont(st);
+    HFONT old = (HFONT)SelectObject(hdc, f);
+    int fitCount = 0;
+    SIZE sz{};
+    if (!GetTextExtentExPointW(hdc, text, length, maxWidth, &fitCount, nullptr, &sz)) {
+        fitCount = 0;
+        if (fitWidth) {
+            *fitWidth = 0;
+        }
+    } else if (fitWidth) {
+        *fitWidth = (fitCount > 0) ? sz.cx : 0;
+    }
+    SelectObject(hdc, old);
+    return fitCount;
+}
+
 void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int& descent, int& lineHeight) {
-    HFONT f = CreateFontFromStyle(st);
+    HFONT f = GetCachedFont(st);
     HFONT old = (HFONT)SelectObject(hdc, f);
     TEXTMETRICW tm{};
     GetTextMetricsW(hdc, &tm);
@@ -73,7 +151,6 @@ void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int
     descent = tm.tmDescent + st.lineExtra;
     lineHeight = tm.tmHeight + tm.tmExternalLeading + st.lineExtra;
     SelectObject(hdc, old);
-    DeleteObject(f);
 }
 
 void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, const std::wstring& text) {
@@ -81,11 +158,10 @@ void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, co
         return;
     }
 
-    HFONT font = CreateFontFromStyle(st);
+    HFONT font = GetCachedFont(st);
     HFONT old = (HFONT)SelectObject(hdc, font);
     ::SetTextColor(hdc, RGB(GetBValue(st.textColor), GetGValue(st.textColor), GetRValue(st.textColor)));
     SetBkMode(hdc, TRANSPARENT);
     TextOutW(hdc, rc.left, rc.top, text.c_str(), static_cast<int>(text.size()));
     SelectObject(hdc, old);
-    DeleteObject(font);
 }

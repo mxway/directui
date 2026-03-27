@@ -120,6 +120,13 @@ void UIRichEdit::UpdateVerticalScrollBar() {
     m_pVerticalScrollBar->SetScrollRange(scrollRange);
     if (!needVisible) {
         m_pVerticalScrollBar->SetScrollPos(0, false);
+    }else {
+        int pos = m_pVerticalScrollBar->GetScrollPos();
+        if (pos > scrollRange) {
+            m_pVerticalScrollBar->SetScrollPos(scrollRange,false);
+        }else if (pos < 0) {
+            m_pVerticalScrollBar->SetScrollPos(0, false);
+        }
     }
 
     RECT rcScroll = m_rcItem;
@@ -128,14 +135,22 @@ void UIRichEdit::UpdateVerticalScrollBar() {
 }
 
 void UIRichEdit::SetPos(RECT rc, bool bNeedInvalidate) {
-    const int oldWidth = GetTextViewWidth();
+    //const int oldWidth = GetTextViewWidth();
+    const RECT oldViewRc = GetTextViewRect();
     UILabel::SetPos(rc, bNeedInvalidate);
     if (m_pVerticalScrollBar) {
         RECT rcScroll = m_rcItem;
         rcScroll.left = rcScroll.right - m_pVerticalScrollBar->GetFixedWidth();
         m_pVerticalScrollBar->SetPos(rcScroll, false);
     }
-    if (oldWidth != GetTextViewWidth()) {
+
+    const RECT newViewRc = GetTextViewRect();
+    const int oldW = std::max(0,static_cast<int>(oldViewRc.right - oldViewRc.left));
+    const int oldH = std::max(0,static_cast<int>(oldViewRc.bottom - oldViewRc.top));
+    const int newW = std::max(0,static_cast<int>(newViewRc.right - newViewRc.left));
+    const int newH = std::max(0, static_cast<int>(newViewRc.bottom - newViewRc.top));
+    if (oldW != newW || oldH != newH) {
+        //printf("MarkLayoutDirty...\n");
         MarkLayoutDirty();
     }
 }
@@ -292,11 +307,60 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
             avail = contentW;
         }
 
-        // greedy fit char range
+        size_t cut = i;
+        int bestW = 0;
+        bool forceCommitAfterSoftBreak = false;
+
+#if defined(_WIN32) || defined(WIN32)
+        size_t runEnd = i;
+        while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
+            const size_t next = NextTextUnit(s, runEnd);
+            if (next <= runEnd) {
+                break;
+            }
+            runEnd = next;
+        }
+
+        const int maxLen = static_cast<int>(runEnd - i);
+        int fitWidth = 0;
+        int fitCount = GetTextFitMetrics(
+            hdc,
+            textRun.style,
+            s.c_str() + i,
+            maxLen,
+            avail,
+            &fitWidth);
+        if (fitCount <= 0) {
+            cut = NextTextUnit(s, i);
+            bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+        } else {
+            cut = i + static_cast<size_t>(fitCount);
+            bestW = fitWidth;
+            if (cut < runEnd) {
+                size_t lastBreak = (size_t)-1;
+                size_t k = i;
+                while (k < cut) {
+                    const size_t next = NextTextUnit(s, k);
+                    if (next <= k) {
+                        break;
+                    }
+                    if (IsBreakableAt(s, k)) {
+                        lastBreak = next;
+                    }
+                    k = next;
+                }
+                if (lastBreak != (size_t)-1 && lastBreak > i) {
+                    cut = lastBreak;
+                    bestW = avail;
+                    //bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+                    forceCommitAfterSoftBreak = true;
+                }
+            }
+        }
+#else
+        // Non-Windows fallback keeps previous greedy behavior.
         size_t j = i;
         size_t lastBreak = (size_t)-1;
-        int bestW = 0;
-
         while (j < n && ConsumeNewLine(s, j) == 0) {
             const size_t next = NextTextUnit(s, j);
             if (next <= j) {
@@ -317,17 +381,17 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
             }
         }
 
-        size_t cut = j;
+        cut = j;
         if (cut == i) {
-            // at least one char
             cut = NextTextUnit(s, i);
             auto piece = s.substr(i, cut - i);
             bestW = MeasureTextWidth(hdc, textRun.style, piece);
         } else if (cut < n && ConsumeNewLine(s, cut) == 0 && lastBreak != (size_t)-1 && lastBreak > i) {
             cut = lastBreak;
-            auto piece = s.substr(i, cut-i);
+            auto piece = s.substr(i, cut - i);
             bestW = MeasureTextWidth(hdc, textRun.style, piece);
         }
+#endif
 
         InlineSegment seg;
         seg.segType = SEG_TEXT;
@@ -345,6 +409,12 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
         cursorX += bestW;
 
         i = cut;
+
+        if (forceCommitAfterSoftBreak) {
+            CommitLine(pl, line, cursorY);
+            cursorX = contentX;
+            continue;
+        }
 
         // if next is newline, consume and commit line
 
@@ -500,16 +570,13 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
         m_layoutDirty = true;
     }
 
-    const bool oldScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
-    const int currentWidth = GetTextViewWidth();
-    if (currentWidth != m_lastLayoutWidth) {
+    if (GetTextViewWidth() != m_lastLayoutWidth) {
         MarkLayoutDirty();
     }
 
     if (m_layoutDirty) {
         DoIncrementalRelayout(hDC);
         m_layoutDirty = false;
-        m_lastLayoutWidth = currentWidth;
     }
 
     const int docTop = m_rcItem.top + m_rcTextPadding.top;
@@ -519,14 +586,17 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
         docBottom = std::max(docBottom, pl.startY + pl.height);
     }
     m_contentHeight = std::max(0, docBottom - docTop);
-    UpdateVerticalScrollBar();
 
+    const bool oldScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+    UpdateVerticalScrollBar();
     const bool newScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+
+    // 关键修复：显隐变化会改变 text view 宽度，必须立刻二次重排
     if (oldScrollVisible != newScrollVisible) {
         MarkLayoutDirty();
         DoIncrementalRelayout(hDC);
         m_layoutDirty = false;
-        m_lastLayoutWidth = GetTextViewWidth();
+
         docBottom = docTop;
         for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
             ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
@@ -536,28 +606,28 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
         UpdateVerticalScrollBar();
     }
 
+    m_lastLayoutWidth = GetTextViewWidth();
+
     const int scrollY = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) ? m_pVerticalScrollBar->GetScrollPos() : 0;
     RECT viewRc = GetTextViewRect();
-    UIRenderClip clip;
-    UIRenderClip::GenerateClip(hDC, viewRc, clip);
     std::vector<Paragraph>& paragraphs = m_document.GetParagraphs();
 
-    for (size_t p=0; p<m_documentLayouts.documentLayouts.size(); ++p) {
+    for (size_t p = 0; p < m_documentLayouts.documentLayouts.size(); ++p) {
         ParagraphLayout& pl = m_documentLayouts.documentLayouts[p];
         const int pTop = pl.startY - scrollY;
         const int pBottom = pTop + pl.height;
         if (pBottom < viewRc.top || pTop > viewRc.bottom) {
             continue;
         }
-        for (size_t li = 0; li<pl.lines.size(); ++li) {
+        for (size_t li = 0; li < pl.lines.size(); ++li) {
             LineLayout& lineLayout = pl.lines[li];
             const int lTop = lineLayout.yTop - scrollY;
             const int lBottom = lTop + lineLayout.height;
             if (lBottom < viewRc.top || lTop > viewRc.bottom) {
                 continue;
             }
-            for (size_t si=0;si<lineLayout.segs.size();++si) {
-                InlineSegment &seg = lineLayout.segs[si];
+            for (size_t si = 0; si < lineLayout.segs.size(); ++si) {
+                InlineSegment& seg = lineLayout.segs[si];
                 UIRect drawRc{seg.rc};
                 drawRc.Offset(0, -scrollY);
                 if (drawRc.bottom < viewRc.top || drawRc.top > viewRc.bottom) {
@@ -566,8 +636,8 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
                 if (seg.segType == SEG_TEXT) {
                     InlineSegment drawSeg = seg;
                     drawSeg.rc = drawRc;
-                    DrawTextSegment(hDC,p, drawSeg,paragraphs);
-                }else {
+                    DrawTextSegment(hDC, p, drawSeg, paragraphs);
+                } else {
                     if (p >= paragraphs.size()) {
                         continue;
                     }
@@ -578,7 +648,7 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
                     }
                     TDrawInfo info;
                     info.sDrawString = UIString{imageRun->id.c_str()};
-                    UIRenderEngine::DrawImage(hDC ,drawRc,m_rcPaint,info);
+                    UIRenderEngine::DrawImage(hDC, drawRc, m_rcPaint, info);
                 }
             }
         }
@@ -606,7 +676,6 @@ SIZE UIRichEdit::EstimateSize(SIZE szAvailable) {
 
 void UIRichEdit::AppendParagraph(const Paragraph& paragraph) {
     m_document.AppendParagraph(paragraph);
-    m_documentLayouts.documentLayouts.assign(m_document.GetParagraphCount(), ParagraphLayout());
     m_layoutDirty = true;
     Invalidate();
 }

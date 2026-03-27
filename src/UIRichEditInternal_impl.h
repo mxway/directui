@@ -20,6 +20,10 @@ size_t ConsumeNewLine(const std::wstring& text, size_t index);
 size_t NextTextUnit(const std::wstring& text, size_t index);
 bool IsBreakableAt(const std::wstring& text, size_t index);
 int MeasureTextWidth(HANDLE_DC hdc, const TextStyle& st, const std::wstring& text);
+int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length);
+int GetTextFitCount(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth);
+int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth,
+					  int* fitWidth);
 void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, const std::wstring& text);
 #else
 bool IsNewLine(char ch);
