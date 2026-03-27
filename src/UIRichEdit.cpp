@@ -146,11 +146,8 @@ void UIRichEdit::SetPos(RECT rc, bool bNeedInvalidate) {
 
     const RECT newViewRc = GetTextViewRect();
     const int oldW = std::max(0,static_cast<int>(oldViewRc.right - oldViewRc.left));
-    const int oldH = std::max(0,static_cast<int>(oldViewRc.bottom - oldViewRc.top));
     const int newW = std::max(0,static_cast<int>(newViewRc.right - newViewRc.left));
-    const int newH = std::max(0, static_cast<int>(newViewRc.bottom - newViewRc.top));
-    if (oldW != newW || oldH != newH) {
-        //printf("MarkLayoutDirty...\n");
+    if (oldW != newW) {
         MarkLayoutDirty();
     }
 }
@@ -271,7 +268,7 @@ void CommitLine(ParagraphLayout& pl, LineLayout& line, int& cursorY) {
 }
 
 static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t runIndex,
-                                int contentX, int contentW,
+                                int contentW,
                                 int& cursorX, int& cursorY,
                                 LineLayout& line, ParagraphLayout& pl) {
     int asc=0, desc=0, lineH=0;
@@ -295,15 +292,15 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
                 line.height = std::max(line.height, asc + desc);
             }
             CommitLine(pl, line, cursorY);
-            cursorX = contentX;
+            cursorX = 0;
             i += newLineBytes;
             continue;
         }
 
-        int avail = contentX + contentW - cursorX;
+        int avail = contentW - cursorX;
         if (avail <= 8) {
             CommitLine(pl, line, cursorY);
-            cursorX = contentX;
+            cursorX = 0;
             avail = contentW;
         }
 
@@ -412,7 +409,7 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
 
         if (forceCommitAfterSoftBreak) {
             CommitLine(pl, line, cursorY);
-            cursorX = contentX;
+            cursorX = 0;
             continue;
         }
 
@@ -422,19 +419,19 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
         if (newLineBytes > 0) {
             i += newLineBytes;
             CommitLine(pl, line, cursorY);
-            cursorX = contentX;
+            cursorX = 0;
         }
     }
 }
 
 static void LayoutImageRunInline(const ImageRun& ir, size_t runIndex,
-                                 int contentX, int contentW,
+                                 int contentW,
                                  int& cursorX, int& cursorY,
                                  LineLayout& line, ParagraphLayout& pl) {
-    int avail = contentX + contentW - cursorX;
+    int avail = contentW - cursorX;
     if (avail < ir.width && !line.segs.empty()) {
         CommitLine(pl, line, cursorY);
-        cursorX = contentX;
+        cursorX = 0;
     }
 
     InlineSegment seg;
@@ -459,11 +456,10 @@ int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY) {
 
     Paragraph& para = m_document.GetParagraphAt(pIndex);
     RECT viewRc = GetTextViewRect();
-    int contentX = viewRc.left;
     int contentW = std::max(12, static_cast<int>(viewRc.right - viewRc.left));
 
     int cursorY = startY;
-    int cursorX = contentX;
+    int cursorX = 0;
 
     LineLayout line;
     line.yTop = cursorY;
@@ -482,10 +478,10 @@ int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY) {
 
         if (rb->Type() == RUN_TEXT) {
             TextRun *tr = static_cast<TextRun*>(rb.get());
-            if (tr) LayoutTextRunInline(hdc, *tr, r, contentX, contentW, cursorX, cursorY, line, pl);
+            if (tr) LayoutTextRunInline(hdc, *tr, r, contentW, cursorX, cursorY, line, pl);
         } else {
             ImageRun* ir = static_cast<ImageRun*>(rb.get());
-            if (ir) LayoutImageRunInline(*ir, r, contentX, contentW, cursorX, cursorY, line, pl);
+            if (ir) LayoutImageRunInline(*ir, r, contentW, cursorX, cursorY, line, pl);
         }
     }
 
@@ -508,7 +504,7 @@ void UIRichEdit::DoIncrementalRelayout(HANDLE_DC hdc) {
     }
     if (firstDirty == paragraphLayout.size()) return;
 
-    int y = m_rcItem.top + m_rcTextPadding.top;
+    int y = 0;
     if (firstDirty > 0) {
         ParagraphLayout& prev = paragraphLayout[firstDirty - 1];
         y = prev.startY + prev.height;
@@ -579,13 +575,12 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
         m_layoutDirty = false;
     }
 
-    const int docTop = m_rcItem.top + m_rcTextPadding.top;
-    int docBottom = docTop;
+    int docBottom = 0;
     for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
         ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
         docBottom = std::max(docBottom, pl.startY + pl.height);
     }
-    m_contentHeight = std::max(0, docBottom - docTop);
+    m_contentHeight = std::max(0, docBottom);
 
     const bool oldScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
     UpdateVerticalScrollBar();
@@ -597,12 +592,12 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
         DoIncrementalRelayout(hDC);
         m_layoutDirty = false;
 
-        docBottom = docTop;
+        docBottom = 0;
         for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
             ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
             docBottom = std::max(docBottom, pl.startY + pl.height);
         }
-        m_contentHeight = std::max(0, docBottom - docTop);
+        m_contentHeight = std::max(0, docBottom);
         UpdateVerticalScrollBar();
     }
 
@@ -610,26 +605,28 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
 
     const int scrollY = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) ? m_pVerticalScrollBar->GetScrollPos() : 0;
     RECT viewRc = GetTextViewRect();
+    UIRenderClip clip;
+    UIRenderClip::GenerateClip(hDC, viewRc, clip);
     std::vector<Paragraph>& paragraphs = m_document.GetParagraphs();
 
     for (size_t p = 0; p < m_documentLayouts.documentLayouts.size(); ++p) {
         ParagraphLayout& pl = m_documentLayouts.documentLayouts[p];
         const int pTop = pl.startY - scrollY;
         const int pBottom = pTop + pl.height;
-        if (pBottom < viewRc.top || pTop > viewRc.bottom) {
+        if (pBottom <= 0 || pTop > viewRc.bottom - viewRc.top) {
             continue;
         }
         for (size_t li = 0; li < pl.lines.size(); ++li) {
             LineLayout& lineLayout = pl.lines[li];
             const int lTop = lineLayout.yTop - scrollY;
             const int lBottom = lTop + lineLayout.height;
-            if (lBottom < viewRc.top || lTop > viewRc.bottom) {
+            if (lBottom <= 0 || lTop > viewRc.bottom - viewRc.top) {
                 continue;
             }
             for (size_t si = 0; si < lineLayout.segs.size(); ++si) {
                 InlineSegment& seg = lineLayout.segs[si];
                 UIRect drawRc{seg.rc};
-                drawRc.Offset(0, -scrollY);
+                drawRc.Offset(viewRc.left, viewRc.top-scrollY);
                 if (drawRc.bottom < viewRc.top || drawRc.top > viewRc.bottom) {
                     continue;
                 }
