@@ -202,8 +202,8 @@ public:
     void AppendParagraph(const Paragraph& paragraph);
 
 private:
-    void    DoIncrementalRelayout(HANDLE_DC hDC);
-    int     LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY);
+    void    DoIncrementalRelayout(HANDLE_DC hDC, int contentW, int stopAfterHeight = -1, bool* stoppedEarly = nullptr);
+    int     LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY, int contentW, int stopAfterHeight = -1, bool* stoppedEarly = nullptr);
     RECT    GetTextViewRect() const;
     int     GetTextViewWidth() const;
     void    EnsureVerticalScrollBar();

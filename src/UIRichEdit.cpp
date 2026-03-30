@@ -41,12 +41,36 @@ LPVOID UIRichEdit::GetInterface(const UIString& name) {
 
 void UIRichEdit::SetText(const UIString& text) {
     m_document.ClearParagraphs();
-    Paragraph   paragraph;
-    auto textRun = make_shared<TextRun>();
-    textRun->SetText(text);
-    textRun->style.textColor = m_textColor;
-    paragraph.AppendRun(textRun);
-    m_document.AppendParagraph(paragraph);
+    const char *end = text.GetData() + text.GetLength();
+
+    const char *paragraphStart = text.GetData();
+    const char *paragraphEnd = paragraphStart;
+    while (paragraphStart < end) {
+        paragraphEnd = paragraphStart;
+        while (paragraphEnd != end && *paragraphEnd != '\r' && *paragraphEnd != '\n') {
+            paragraphEnd++;
+        }
+        if (paragraphStart == paragraphEnd) {
+            m_document.AppendParagraph(Paragraph{});
+        }else {
+            auto textRun = make_shared<TextRun>();
+            textRun->SetText(UIString{paragraphStart,paragraphEnd-paragraphStart});
+            textRun->style.textColor = m_textColor;
+            Paragraph   paragraph;
+            paragraph.AppendRun(textRun);
+            m_document.AppendParagraph(paragraph);
+
+        }
+        paragraphStart = paragraphEnd;
+
+        //\r\n
+        if (*paragraphStart=='\r' && (paragraphStart+1) < end && *(paragraphStart+1)=='\n') {
+            paragraphStart += 2;
+        }else if (*paragraphStart=='\r' || *paragraphStart=='\n') {
+            paragraphStart++;
+        }
+    }
+
     m_documentLayouts.documentLayouts.assign(m_document.GetParagraphCount(), ParagraphLayout());
     m_layoutDirty = true;
     SyncScrollFromBar();
@@ -267,10 +291,111 @@ void CommitLine(ParagraphLayout& pl, LineLayout& line, int& cursorY) {
     line.yTop = cursorY;
 }
 
+static void ComputeTextSliceForLine(HANDLE_DC hdc,
+                                    const TextRun& textRun,
+#if defined(_WIN32) || defined(WIN32)
+                                    const std::wstring& s,
+#else
+                                    const std::string& s,
+#endif
+                                    size_t i,
+                                    int avail,
+                                    size_t& cut,
+                                    int& bestW,
+                                    bool& forceCommitAfterSoftBreak) {
+    cut = i;
+    bestW = 0;
+    forceCommitAfterSoftBreak = false;
+
+#if defined(_WIN32) || defined(WIN32)
+    const size_t n = s.size();
+    size_t runEnd = i;
+    while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
+        const size_t next = NextTextUnit(s, runEnd);
+        if (next <= runEnd) {
+            break;
+        }
+        runEnd = next;
+    }
+
+    const int maxLen = static_cast<int>(runEnd - i);
+    int fitWidth = 0;
+    const int fitCount = GetTextFitMetrics(
+        hdc,
+        textRun.style,
+        s.c_str() + i,
+        maxLen,
+        avail,
+        &fitWidth);
+
+    if (fitCount <= 0) {
+        cut = NextTextUnit(s, i);
+        bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+        return;
+    }
+
+    cut = i + static_cast<size_t>(fitCount);
+    bestW = fitWidth;
+
+    if (cut < runEnd) {
+        size_t lastBreak = (size_t)-1;
+        size_t k = i;
+        while (k < cut) {
+            const size_t next = NextTextUnit(s, k);
+            if (next <= k) {
+                break;
+            }
+            if (IsBreakableAt(s, k)) {
+                lastBreak = next;
+            }
+            k = next;
+        }
+        if (lastBreak != (size_t)-1 && lastBreak > i) {
+            cut = lastBreak;
+            bestW = avail;
+            forceCommitAfterSoftBreak = true;
+        }
+    }
+#else
+    const size_t n = s.size();
+    size_t j = i;
+    size_t lastBreak = (size_t)-1;
+    while (j < n && ConsumeNewLine(s, j) == 0) {
+        const size_t next = NextTextUnit(s, j);
+        if (next <= j) {
+            break;
+        }
+        if (IsBreakableAt(s, j)) {
+            lastBreak = next;
+        }
+        auto piece = s.substr(i, next - i);
+        int w = MeasureTextWidth(hdc, textRun.style, piece);
+        if (w <= avail) {
+            bestW = w;
+            j = next;
+        } else {
+            break;
+        }
+    }
+
+    cut = j;
+    if (cut == i) {
+        cut = NextTextUnit(s, i);
+        auto piece = s.substr(i, cut - i);
+        bestW = MeasureTextWidth(hdc, textRun.style, piece);
+    } else if (cut < n && ConsumeNewLine(s, cut) == 0 && lastBreak != (size_t)-1 && lastBreak > i) {
+        cut = lastBreak;
+        auto piece = s.substr(i, cut - i);
+        bestW = MeasureTextWidth(hdc, textRun.style, piece);
+    }
+#endif
+}
+
 static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t runIndex,
                                 int contentW,
                                 int& cursorX, int& cursorY,
-                                LineLayout& line, ParagraphLayout& pl) {
+                                LineLayout& line, ParagraphLayout& pl,
+                                int stopAfterHeight, bool* stoppedEarly) {
     int asc=0, desc=0, lineH=0;
     GetTextMetricsForStyle(hdc, textRun.style, asc, desc, lineH);
 
@@ -293,6 +418,12 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
             }
             CommitLine(pl, line, cursorY);
             cursorX = 0;
+            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
+                if (stoppedEarly) {
+                    *stoppedEarly = true;
+                }
+                return;
+            }
             i += newLineBytes;
             continue;
         }
@@ -301,94 +432,19 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
         if (avail <= 8) {
             CommitLine(pl, line, cursorY);
             cursorX = 0;
+            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
+                if (stoppedEarly) {
+                    *stoppedEarly = true;
+                }
+                return;
+            }
             avail = contentW;
         }
 
         size_t cut = i;
         int bestW = 0;
         bool forceCommitAfterSoftBreak = false;
-
-#if defined(_WIN32) || defined(WIN32)
-        size_t runEnd = i;
-        while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
-            const size_t next = NextTextUnit(s, runEnd);
-            if (next <= runEnd) {
-                break;
-            }
-            runEnd = next;
-        }
-
-        const int maxLen = static_cast<int>(runEnd - i);
-        int fitWidth = 0;
-        int fitCount = GetTextFitMetrics(
-            hdc,
-            textRun.style,
-            s.c_str() + i,
-            maxLen,
-            avail,
-            &fitWidth);
-        if (fitCount <= 0) {
-            cut = NextTextUnit(s, i);
-            bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
-        } else {
-            cut = i + static_cast<size_t>(fitCount);
-            bestW = fitWidth;
-            if (cut < runEnd) {
-                size_t lastBreak = (size_t)-1;
-                size_t k = i;
-                while (k < cut) {
-                    const size_t next = NextTextUnit(s, k);
-                    if (next <= k) {
-                        break;
-                    }
-                    if (IsBreakableAt(s, k)) {
-                        lastBreak = next;
-                    }
-                    k = next;
-                }
-                if (lastBreak != (size_t)-1 && lastBreak > i) {
-                    cut = lastBreak;
-                    bestW = avail;
-                    //bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
-                    forceCommitAfterSoftBreak = true;
-                }
-            }
-        }
-#else
-        // Non-Windows fallback keeps previous greedy behavior.
-        size_t j = i;
-        size_t lastBreak = (size_t)-1;
-        while (j < n && ConsumeNewLine(s, j) == 0) {
-            const size_t next = NextTextUnit(s, j);
-            if (next <= j) {
-                break;
-            }
-
-            if (IsBreakableAt(s, j)) {
-                lastBreak = next;
-            }
-
-            auto piece = s.substr(i, next - i);
-            int w = MeasureTextWidth(hdc, textRun.style, piece);
-            if (w <= avail) {
-                bestW = w;
-                j = next;
-            } else {
-                break;
-            }
-        }
-
-        cut = j;
-        if (cut == i) {
-            cut = NextTextUnit(s, i);
-            auto piece = s.substr(i, cut - i);
-            bestW = MeasureTextWidth(hdc, textRun.style, piece);
-        } else if (cut < n && ConsumeNewLine(s, cut) == 0 && lastBreak != (size_t)-1 && lastBreak > i) {
-            cut = lastBreak;
-            auto piece = s.substr(i, cut - i);
-            bestW = MeasureTextWidth(hdc, textRun.style, piece);
-        }
-#endif
+        ComputeTextSliceForLine(hdc, textRun, s, i, avail, cut, bestW, forceCommitAfterSoftBreak);
 
         InlineSegment seg;
         seg.segType = SEG_TEXT;
@@ -410,6 +466,12 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
         if (forceCommitAfterSoftBreak) {
             CommitLine(pl, line, cursorY);
             cursorX = 0;
+            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
+                if (stoppedEarly) {
+                    *stoppedEarly = true;
+                }
+                return;
+            }
             continue;
         }
 
@@ -420,6 +482,12 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
             i += newLineBytes;
             CommitLine(pl, line, cursorY);
             cursorX = 0;
+            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
+                if (stoppedEarly) {
+                    *stoppedEarly = true;
+                }
+                return;
+            }
         }
     }
 }
@@ -427,11 +495,18 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
 static void LayoutImageRunInline(const ImageRun& ir, size_t runIndex,
                                  int contentW,
                                  int& cursorX, int& cursorY,
-                                 LineLayout& line, ParagraphLayout& pl) {
+                                 LineLayout& line, ParagraphLayout& pl,
+                                 int stopAfterHeight, bool* stoppedEarly) {
     int avail = contentW - cursorX;
     if (avail < ir.width && !line.segs.empty()) {
         CommitLine(pl, line, cursorY);
         cursorX = 0;
+        if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
+            if (stoppedEarly) {
+                *stoppedEarly = true;
+            }
+            return;
+        }
     }
 
     InlineSegment seg;
@@ -448,15 +523,14 @@ static void LayoutImageRunInline(const ImageRun& ir, size_t runIndex,
     cursorX += ir.width + 2;
 }
 
-int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY) {
+int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY, int contentW, int stopAfterHeight, bool* stoppedEarly) {
     std::vector<ParagraphLayout> &paragraphLayout = m_documentLayouts.documentLayouts;
     ParagraphLayout& pl = paragraphLayout[pIndex];
     pl.startY = startY;
     pl.lines.clear();
 
     Paragraph& para = m_document.GetParagraphAt(pIndex);
-    RECT viewRc = GetTextViewRect();
-    int contentW = std::max(12, static_cast<int>(viewRc.right - viewRc.left));
+    contentW = std::max(12, contentW);
 
     int cursorY = startY;
     int cursorX = 0;
@@ -478,10 +552,24 @@ int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY) {
 
         if (rb->Type() == RUN_TEXT) {
             TextRun *tr = static_cast<TextRun*>(rb.get());
-            if (tr) LayoutTextRunInline(hdc, *tr, r, contentW, cursorX, cursorY, line, pl);
+            if (tr) {
+                LayoutTextRunInline(hdc, *tr, r, contentW, cursorX, cursorY, line, pl, stopAfterHeight, stoppedEarly);
+                if (stoppedEarly && *stoppedEarly) {
+                    pl.height = std::max(20, cursorY - startY);
+                    pl.dirty = true;
+                    return pl.height;
+                }
+            }
         } else {
             ImageRun* ir = static_cast<ImageRun*>(rb.get());
-            if (ir) LayoutImageRunInline(*ir, r, contentW, cursorX, cursorY, line, pl);
+            if (ir) {
+                LayoutImageRunInline(*ir, r, contentW, cursorX, cursorY, line, pl, stopAfterHeight, stoppedEarly);
+                if (stoppedEarly && *stoppedEarly) {
+                    pl.height = std::max(20, cursorY - startY);
+                    pl.dirty = true;
+                    return pl.height;
+                }
+            }
         }
     }
 
@@ -492,7 +580,12 @@ int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY) {
     return pl.height;
 }
 
-void UIRichEdit::DoIncrementalRelayout(HANDLE_DC hdc) {
+
+void UIRichEdit::DoIncrementalRelayout(HANDLE_DC hdc, int contentW, int stopAfterHeight, bool* stoppedEarly) {
+
+    if (stoppedEarly) {
+        *stoppedEarly = false;
+    }
 
     std::vector<ParagraphLayout> &paragraphLayout = m_documentLayouts.documentLayouts;
     if (paragraphLayout.size() == 0) {
@@ -513,7 +606,10 @@ void UIRichEdit::DoIncrementalRelayout(HANDLE_DC hdc) {
     for (size_t i=firstDirty; i<paragraphLayout.size(); ++i) {
         ParagraphLayout& pl = paragraphLayout[i];
         if (pl.dirty) {
-            LayoutOneParagraph(hdc, i, y);
+            LayoutOneParagraph(hdc, i, y, contentW, stopAfterHeight, stoppedEarly);
+            if (stoppedEarly && *stoppedEarly) {
+                break;
+            }
         } else {
             int delta = y - pl.startY;
             if (delta != 0) {
@@ -529,6 +625,12 @@ void UIRichEdit::DoIncrementalRelayout(HANDLE_DC hdc) {
             }
         }
         y = paragraphLayout[i].startY + paragraphLayout[i].height;
+        if (stopAfterHeight >= 0 && y > stopAfterHeight) {
+            if (stoppedEarly) {
+                *stoppedEarly = true;
+            }
+            break;
+        }
     }
 }
 
@@ -570,8 +672,37 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
         MarkLayoutDirty();
     }
 
+    const bool hadScrollVisibleBeforeLayout = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+    bool handledHiddenToVisibleByPrepass = false;
+
     if (m_layoutDirty) {
-        DoIncrementalRelayout(hDC);
+        RECT baseRc = m_rcItem;
+        baseRc.left += m_rcTextPadding.left;
+        baseRc.top += m_rcTextPadding.top;
+        baseRc.right -= m_rcTextPadding.right;
+        baseRc.bottom -= m_rcTextPadding.bottom;
+        if (baseRc.right < baseRc.left) baseRc.right = baseRc.left;
+        if (baseRc.bottom < baseRc.top) baseRc.bottom = baseRc.top;
+
+        const int viewHeight = std::max(0, static_cast<int>(baseRc.bottom - baseRc.top));
+        const int noScrollWidth = std::max(12, static_cast<int>(baseRc.right - baseRc.left));
+        const int scrollBarWidth = (m_enableVerticalScrollBar && m_pVerticalScrollBar) ? std::max(0, m_pVerticalScrollBar->GetFixedWidth()) : 0;
+        const int reducedWidth = std::max(12, noScrollWidth - scrollBarWidth);
+
+        const bool canProbeOverflow =
+            (m_enableVerticalScrollBar && m_pVerticalScrollBar && !hadScrollVisibleBeforeLayout && viewHeight > 0 && scrollBarWidth > 0);
+
+        if (canProbeOverflow) {
+            bool overflowDetected = false;
+            DoIncrementalRelayout(hDC, noScrollWidth, viewHeight, &overflowDetected);
+            if (overflowDetected) {
+                handledHiddenToVisibleByPrepass = true;
+                MarkLayoutDirty();
+                DoIncrementalRelayout(hDC, reducedWidth, -1, nullptr);
+            }
+        } else {
+            DoIncrementalRelayout(hDC, std::max(12, GetTextViewWidth()), -1, nullptr);
+        }
         m_layoutDirty = false;
     }
 
@@ -582,23 +713,26 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
     }
     m_contentHeight = std::max(0, docBottom);
 
-    const bool oldScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+    const bool oldScrollVisible = hadScrollVisibleBeforeLayout;
     UpdateVerticalScrollBar();
     const bool newScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
 
     // 关键修复：显隐变化会改变 text view 宽度，必须立刻二次重排
     if (oldScrollVisible != newScrollVisible) {
-        MarkLayoutDirty();
-        DoIncrementalRelayout(hDC);
-        m_layoutDirty = false;
+        const bool hiddenToVisibleAlreadyHandled = (!oldScrollVisible && newScrollVisible && handledHiddenToVisibleByPrepass);
+        if (!hiddenToVisibleAlreadyHandled) {
+            MarkLayoutDirty();
+            DoIncrementalRelayout(hDC, std::max(12, GetTextViewWidth()), -1, nullptr);
+            m_layoutDirty = false;
 
-        docBottom = 0;
-        for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
-            ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
-            docBottom = std::max(docBottom, pl.startY + pl.height);
+            docBottom = 0;
+            for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
+                ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
+                docBottom = std::max(docBottom, pl.startY + pl.height);
+            }
+            m_contentHeight = std::max(0, docBottom);
+            UpdateVerticalScrollBar();
         }
-        m_contentHeight = std::max(0, docBottom);
-        UpdateVerticalScrollBar();
     }
 
     m_lastLayoutWidth = GetTextViewWidth();
