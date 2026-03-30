@@ -54,7 +54,7 @@ void UIRichEdit::SetText(const UIString& text) {
             m_document.AppendParagraph(Paragraph{});
         }else {
             auto textRun = make_shared<TextRun>();
-            textRun->SetText(UIString{paragraphStart,paragraphEnd-paragraphStart});
+            textRun->SetText(UIString{paragraphStart,static_cast<int>(paragraphEnd-paragraphStart)});
             textRun->style.textColor = m_textColor;
             Paragraph   paragraph;
             paragraph.AppendRun(textRun);
@@ -358,35 +358,71 @@ static void ComputeTextSliceForLine(HANDLE_DC hdc,
     }
 #else
     const size_t n = s.size();
-    size_t j = i;
-    size_t lastBreak = (size_t)-1;
-    while (j < n && ConsumeNewLine(s, j) == 0) {
-        const size_t next = NextTextUnit(s, j);
-        if (next <= j) {
+    size_t runEnd = i;
+    while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
+        const size_t next = NextTextUnit(s, runEnd);
+        if (next <= runEnd) {
             break;
         }
-        if (IsBreakableAt(s, j)) {
-            lastBreak = next;
-        }
-        auto piece = s.substr(i, next - i);
-        int w = MeasureTextWidth(hdc, textRun.style, piece);
-        if (w <= avail) {
-            bestW = w;
-            j = next;
-        } else {
-            break;
-        }
+        runEnd = next;
     }
 
-    cut = j;
-    if (cut == i) {
+    const int maxLen = static_cast<int>(runEnd - i);
+    int fitWidth = 0;
+    const int fitCount = GetTextFitMetrics(
+        hdc,
+        textRun.style,
+        s.c_str() + i,
+        maxLen,
+        avail,
+        &fitWidth);
+
+    if (fitCount <= 0) {
         cut = NextTextUnit(s, i);
-        auto piece = s.substr(i, cut - i);
-        bestW = MeasureTextWidth(hdc, textRun.style, piece);
-    } else if (cut < n && ConsumeNewLine(s, cut) == 0 && lastBreak != (size_t)-1 && lastBreak > i) {
-        cut = lastBreak;
-        auto piece = s.substr(i, cut - i);
-        bestW = MeasureTextWidth(hdc, textRun.style, piece);
+        bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+        return;
+    }
+
+    cut = i + static_cast<size_t>(fitCount);
+    bestW = fitWidth;
+
+    if (cut < runEnd) {
+        size_t lastBreak = (size_t)-1;
+        size_t k = i;
+        while (k < cut) {
+            const size_t next = NextTextUnit(s, k);
+            if (next <= k) {
+                break;
+            }
+            if (IsBreakableAt(s, k)) {
+                lastBreak = next;
+            }
+            k = next;
+        }
+        if (lastBreak != (size_t)-1 && lastBreak > i) {
+            // Avoid rolling back too far (common in CJK text with punctuation),
+            // otherwise an entire phrase may be pushed to the next line.
+            const int maxRollbackUnits = 2;
+            int rollbackUnits = 0;
+            const char* begin = s.c_str();
+            size_t rollbackCursor = std::min(cut, runEnd);
+            while (rollbackCursor > lastBreak && rollbackCursor > i && rollbackUnits <= maxRollbackUnits) {
+                const char* current = begin + rollbackCursor;
+                const char* prev = CharPrev(begin + i, current);
+                if (prev >= current) {
+                    break;
+                }
+                rollbackCursor = static_cast<size_t>(prev - begin);
+                ++rollbackUnits;
+            }
+
+            if (rollbackCursor <= lastBreak && rollbackUnits <= maxRollbackUnits) {
+                cut = lastBreak;
+                //bestW = avail;
+                bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+                forceCommitAfterSoftBreak = true;
+            }
+        }
     }
 #endif
 }

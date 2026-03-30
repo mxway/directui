@@ -3,6 +3,7 @@
 #include <UIFont.h>
 #include <algorithm>
 #include <cstring>
+#include <unordered_map>
 #include <pango/pango-layout.h>
 
 #include "UIRenderEngine.h"
@@ -19,6 +20,30 @@
 
 namespace {
 
+struct TextStyleKey {
+    int fontSize;
+    bool bold;
+    bool italic;
+    std::string fontFamily;
+
+    bool operator==(const TextStyleKey& other) const {
+        return fontSize == other.fontSize &&
+               bold == other.bold &&
+               italic == other.italic &&
+               fontFamily == other.fontFamily;
+    }
+};
+
+struct TextStyleKeyHash {
+    size_t operator()(const TextStyleKey& key) const {
+        size_t h = std::hash<int>{}(key.fontSize);
+        h ^= (std::hash<bool>{}(key.bold) << 1);
+        h ^= (std::hash<bool>{}(key.italic) << 2);
+        h ^= (std::hash<std::string>{}(key.fontFamily) << 3);
+        return h;
+    }
+};
+
 PangoContext* CreateRichEditPangoContext(HANDLE_DC hdc) {
 #ifdef GTK_BACKEND
     return pango_cairo_create_context(hdc);
@@ -32,6 +57,21 @@ void ApplyFontDescription(PangoLayout* layout, HANDLE_FONT font) {
     if (font != nullptr) {
         pango_layout_set_font_description(layout, font);
     }
+}
+
+HANDLE_FONT GetCachedFont(const TextStyle& style) {
+    static std::unordered_map<TextStyleKey, HANDLE_FONT, TextStyleKeyHash> s_fontCache;
+    TextStyleKey key{style.fontSize, style.bold, style.italic, style.fontFamily};
+    auto it = s_fontCache.find(key);
+    if (it != s_fontCache.end()) {
+        return it->second;
+    }
+
+    HANDLE_FONT font = CreateFontFromStyle(style);
+    if (font != nullptr) {
+        s_fontCache.emplace(std::move(key), font);
+    }
+    return font;
 }
 
 } // namespace
@@ -69,11 +109,18 @@ HANDLE_FONT CreateFontFromStyle(const TextStyle& s) {
 }
 
 int MeasureTextWidth(HANDLE_DC hdc, const TextStyle& st, const std::string& text) {
-    HANDLE_FONT font = CreateFontFromStyle(st);
+    return MeasureTextWidthRange(hdc, st, text.c_str(), static_cast<int>(text.size()));
+}
+
+int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const char* text, int length) {
+    if (text == nullptr || length <= 0) {
+        return 0;
+    }
+    HANDLE_FONT font = GetCachedFont(st);
     PangoContext* context = CreateRichEditPangoContext(hdc);
     PangoLayout* layout = pango_layout_new(context);
     ApplyFontDescription(layout, font);
-    pango_layout_set_text(layout, text.c_str(), static_cast<int>(text.size()));
+    pango_layout_set_text(layout, text, length);
 
     int width = 0;
     int height = 0;
@@ -81,14 +128,43 @@ int MeasureTextWidth(HANDLE_DC hdc, const TextStyle& st, const std::string& text
 
     g_object_unref(layout);
     g_object_unref(context);
-    if (font != nullptr) {
-        pango_font_description_free(font);
-    }
     return width;
 }
 
+int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const char* text, int length, int maxWidth,
+                      int* fitWidth) {
+    if (fitWidth) {
+        *fitWidth = 0;
+    }
+    if (text == nullptr || length <= 0 || maxWidth <= 0) {
+        return 0;
+    }
+    HANDLE_FONT font = GetCachedFont(st);
+    PangoContext* context = CreateRichEditPangoContext(hdc);
+    PangoLayout* layout = pango_layout_new(context);
+    ApplyFontDescription(layout, font);
+    pango_layout_set_text(layout, text, length);
+    pango_layout_set_single_paragraph_mode(layout, TRUE);
+    pango_layout_set_width(layout, -1);
+
+    int index = 0;
+    int trailing = 0;
+    pango_layout_xy_to_index(layout, maxWidth * PANGO_SCALE, 0, &index, &trailing);
+
+    int fitCount = std::max(0, std::min(index, length));
+    if (fitWidth) {
+        PangoRectangle strongPos = {};
+        pango_layout_get_cursor_pos(layout, fitCount, &strongPos, nullptr);
+        *fitWidth = std::max(0, PANGO_PIXELS(strongPos.x));
+    }
+
+    g_object_unref(layout);
+    g_object_unref(context);
+    return fitCount;
+}
+
 void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int& descent, int& lineHeight) {
-    HANDLE_FONT font = CreateFontFromStyle(st);
+    HANDLE_FONT font = GetCachedFont(st);
     PangoContext* context = CreateRichEditPangoContext(hdc);
     PangoFontMetrics* metrics = pango_context_get_metrics(context, font, pango_context_get_language(context));
 
@@ -98,21 +174,15 @@ void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int
 
     pango_font_metrics_unref(metrics);
     g_object_unref(context);
-    if (font != nullptr) {
-        pango_font_description_free(font);
-    }
 }
 
 void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, const std::string& text) {
     if (text.empty()) {
         return;
     }
-    HANDLE_FONT  font = CreateFontFromStyle(st);
+    HANDLE_FONT  font = GetCachedFont(st);
     RECT tmpRc = {rc.left, rc.top, rc.right, rc.bottom};
     UIRenderEngine::DrawText(hdc,tmpRc,UIString{text.c_str()},st.textColor,font,0);
-    if (font != nullptr) {
-        pango_font_description_free(font);
-    }
 }
 
 size_t ConsumeNewLine(const std::string& text, size_t index) {
