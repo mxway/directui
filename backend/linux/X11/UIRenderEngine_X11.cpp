@@ -471,13 +471,6 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, RECT& rc, const UIString& text, uin
     // 创建 Pango 布局对象
     PangoLayout *layout = pango_layout_new(context);
 
-    Region region = XCreateRegion();
-    XRectangle  regionRect = {static_cast<short>(rc.left),
-        static_cast<short>(rc.top),
-        static_cast<unsigned short>(nWidth),
-        static_cast<unsigned short>(nHeight)};
-    XUnionRectWithRegion(&regionRect,region,region);
-
     // 设置文本内容
     pango_layout_set_text(layout, text.GetData(), text.GetLength());
 
@@ -572,11 +565,11 @@ void UIRenderEngine::DrawText(HANDLE_DC hDC, RECT& rc, const UIString& text, uin
     XftDraw *draw = XftDrawCreate(hDC->x11Window->display, hDC->drawablePixmap,
                                   hDC->x11Window->visual,
                                   hDC->x11Window->colormap);
-    XftDrawSetClip(draw,region);
-    //XftDrawSetClipRectangles(draw,)
-    pango_xft_render_layout(draw, &color,layout,rc.left*PANGO_SCALE,(nFixY-1)*PANGO_SCALE);
+    if (hDC->currentRegion != nullptr) {
+        XftDrawSetClip(draw, hDC->currentRegion);
+    }
 
-    XDestroyRegion(region);
+    pango_xft_render_layout(draw, &color,layout,rc.left*PANGO_SCALE,(nFixY-1)*PANGO_SCALE);
     XftDrawDestroy(draw);
     // 清理资源
     g_object_unref(layout);

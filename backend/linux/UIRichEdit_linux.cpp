@@ -11,6 +11,7 @@
 #ifdef GTK_BACKEND
 #include <pango/pangocairo.h>
 #else
+#include <pango/pangoft2.h>
 #include <pango/pangoxft.h>
 #include "X11/X11HDC.h"
 #include "X11/X11Window.h"
@@ -44,12 +45,16 @@ struct TextStyleKeyHash {
     }
 };
 
-PangoContext* CreateRichEditPangoContext(HANDLE_DC hdc) {
+PangoContext* CreateRichEditMeasurePangoContext(HANDLE_DC hdc) {
 #ifdef GTK_BACKEND
     return pango_cairo_create_context(hdc);
 #else
-    PangoFontMap* fontMap = pango_xft_get_font_map(hdc->x11Window->display, hdc->x11Window->screen);
-    return pango_font_map_create_context(fontMap);
+    static PangoFontMap* s_measureFontMap = []() -> PangoFontMap* {
+        PangoFontMap* fontMap = pango_ft2_font_map_new();
+        pango_ft2_font_map_set_resolution(PANGO_FT2_FONT_MAP(fontMap), 96, 96);
+        return fontMap;
+    }();
+    return pango_font_map_create_context(s_measureFontMap);
 #endif
 }
 
@@ -117,7 +122,7 @@ int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const char* text, 
         return 0;
     }
     HANDLE_FONT font = GetCachedFont(st);
-    PangoContext* context = CreateRichEditPangoContext(hdc);
+    PangoContext* context = CreateRichEditMeasurePangoContext(hdc);
     PangoLayout* layout = pango_layout_new(context);
     ApplyFontDescription(layout, font);
     pango_layout_set_text(layout, text, length);
@@ -140,7 +145,7 @@ int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const char* text, int 
         return 0;
     }
     HANDLE_FONT font = GetCachedFont(st);
-    PangoContext* context = CreateRichEditPangoContext(hdc);
+    PangoContext* context = CreateRichEditMeasurePangoContext(hdc);
     PangoLayout* layout = pango_layout_new(context);
     ApplyFontDescription(layout, font);
     pango_layout_set_text(layout, text, length);
@@ -165,7 +170,7 @@ int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const char* text, int 
 
 void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int& descent, int& lineHeight) {
     HANDLE_FONT font = GetCachedFont(st);
-    PangoContext* context = CreateRichEditPangoContext(hdc);
+    PangoContext* context = CreateRichEditMeasurePangoContext(hdc);
     PangoFontMetrics* metrics = pango_context_get_metrics(context, font, pango_context_get_language(context));
 
     ascent = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));

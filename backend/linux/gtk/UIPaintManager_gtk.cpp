@@ -4,11 +4,7 @@
 #include "UIRect.h"
 #include <cassert>
 #include <cstring>
-#include <iostream>
-#include <chrono>
-
-using namespace std;
-using namespace chrono;
+#include <UIElapsedTimer.h>
 
 typedef struct tagTIMERINFO
 {
@@ -158,6 +154,9 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
                 SendNotify(m_pRoot, DUI_MSGTYPE_WINDOWINIT, 0,0, false);
             }
 
+#ifdef Debug
+            UIElapsedTimer elapsedTimer("Paint Time");
+#endif
             //
             // Is here has a rect for draw.
             //

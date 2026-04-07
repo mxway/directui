@@ -2,14 +2,10 @@
 #include <windows.h>
 #include <UIBaseWindow.h>
 #include <UIRenderEngine.h>
-#include <iostream>
 #include <cassert>
 #include <windowsx.h>
 #include <commctrl.h>
-#include <chrono>
-
-using namespace std;
-using namespace chrono;
+#include <UIElapsedTimer.h>
 
 typedef struct tagTIMERINFO
 {
@@ -167,7 +163,9 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             //m_pRoot->Paint(m_impl->m_hDcPaint,rcPaint,nullptr);
             auto hOldBitmap = (HBITMAP)::SelectObject(hDcOffscreen, hbmpOffscreen);
             //int iSaveDc = ::SaveDC(hDcOffscreen);
-            auto start = chrono::high_resolution_clock::now();
+#ifdef Debug
+            UIElapsedTimer elapsedTimer("Paint Time");
+#endif
             m_pRoot->Paint(hDcOffscreen,rcPaint,nullptr);
             //::RestoreDC(hDcOffscreen, iSaveDc);
             ::BitBlt(m_impl->m_hDcPaint, rcPaint.left, rcPaint.top, rcPaint.right - rcPaint.left,
@@ -176,8 +174,6 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             //         rcPaint.bottom - rcPaint.top, m_hDcOffscreen, rcPaint.left, rcPaint.top, SRCCOPY);
             ::SelectObject(hDcOffscreen, hOldBitmap);
             ::EndPaint(m_paintWnd, &ps);
-            auto end = chrono::high_resolution_clock::now();
-            cout<<"Draw Duration:"<<duration_cast<milliseconds>(end-start).count()<<"(ms)"<<endl;
             return true;
         }
         case WM_MOUSEACTIVATE:

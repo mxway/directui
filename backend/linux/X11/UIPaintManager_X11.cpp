@@ -7,8 +7,8 @@
 #include <UIBaseWindowObjects.h>
 #include "X11HDC.h"
 #include <poll.h>
-
 #include "X11Window.h"
+#include <UIElapsedTimer.h>
 
 struct UIPaintManagerInternalImp {
     UIPaintManagerInternalImp() {
@@ -182,6 +182,9 @@ bool UIPaintManager::MessageHandler(uint32_t uMsg, WPARAM wParam, LPARAM lParam,
             //
             // Is here has a rect for draw.
 
+#ifdef Debug
+            UIElapsedTimer elapsedTimer("Paint Time");
+#endif
             if(event != nullptr){
                 //UIRect rect {event->x,event->y,event->x + event->width, event->y + event->height};
                 if(!m_impl->m_repaintRect.IsEmpty()){
