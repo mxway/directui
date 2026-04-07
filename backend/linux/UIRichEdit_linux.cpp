@@ -168,6 +168,62 @@ int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const char* text, int 
     return fitCount;
 }
 
+void ComputeWrappedTextSlices(HANDLE_DC hdc,
+                              const TextStyle& st,
+                              const char* text,
+                              int length,
+                              int lineWidth,
+                              std::vector<WrappedTextSlice>& outSlices) {
+    outSlices.clear();
+    if (text == nullptr || length <= 0 || lineWidth <= 0) {
+        return;
+    }
+
+    HANDLE_FONT font = GetCachedFont(st);
+    PangoContext* context = CreateRichEditMeasurePangoContext(hdc);
+    PangoLayout* layout = pango_layout_new(context);
+    ApplyFontDescription(layout, font);
+    pango_layout_set_text(layout, text, length);
+    pango_layout_set_single_paragraph_mode(layout, TRUE);
+    pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
+    pango_layout_set_width(layout, lineWidth * PANGO_SCALE);
+
+    PangoLayoutIter* iter = pango_layout_get_iter(layout);
+    do {
+        const int startIndex = pango_layout_iter_get_index(iter);
+        PangoLayoutLine* line = pango_layout_iter_get_line_readonly(iter);
+        if (line == nullptr) {
+            continue;
+        }
+
+        int lineLength = std::max(0, line->length);
+        if (lineLength == 0 && startIndex < length) {
+            const char* begin = text;
+            const char* current = begin + startIndex;
+            const char* next = CharNext(current);
+            if (next > current) {
+                lineLength = static_cast<int>(next - current);
+            }
+        }
+
+        const int clampedStart = std::max(0, std::min(startIndex, length));
+        const int available = std::max(0, length - clampedStart);
+        const int clampedLength = std::max(0, std::min(lineLength, available));
+        if (clampedLength <= 0) {
+            continue;
+        }
+
+        PangoRectangle logicalRect = {};
+        pango_layout_line_get_extents(line, nullptr, &logicalRect);
+        const int width = std::max(0, PANGO_PIXELS(logicalRect.width));
+        outSlices.emplace_back(static_cast<size_t>(clampedStart), static_cast<size_t>(clampedLength), width);
+    } while (pango_layout_iter_next_line(iter));
+
+    pango_layout_iter_free(iter);
+    g_object_unref(layout);
+    g_object_unref(context);
+}
+
 void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int& descent, int& lineHeight) {
     HANDLE_FONT font = GetCachedFont(st);
     PangoContext* context = CreateRichEditMeasurePangoContext(hdc);

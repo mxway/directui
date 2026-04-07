@@ -26,6 +26,14 @@ int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, i
 					  int* fitWidth);
 void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, const std::wstring& text);
 #else
+struct WrappedTextSlice {
+	size_t startChar;
+	size_t charLen;
+	int width;
+	WrappedTextSlice() : startChar(0), charLen(0), width(0) {}
+	WrappedTextSlice(size_t start, size_t len, int w) : startChar(start), charLen(len), width(w) {}
+};
+
 bool IsNewLine(char ch);
 bool IsBreakable(char c);
 bool IsBreakableAt(const std::string& text, size_t index);
@@ -36,6 +44,12 @@ int MeasureTextWidth(HANDLE_DC hdc, const TextStyle& st, const std::string& text
 int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const char* text, int length);
 int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const char* text, int length, int maxWidth,
 					  int* fitWidth);
+void ComputeWrappedTextSlices(HANDLE_DC hdc,
+							  const TextStyle& st,
+							  const char* text,
+							  int length,
+							  int lineWidth,
+							  std::vector<WrappedTextSlice>& outSlices);
 void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, const std::string& text);
 #endif
 
