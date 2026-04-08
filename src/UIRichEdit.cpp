@@ -367,63 +367,33 @@ static void ComputeTextSliceForLine(HANDLE_DC hdc,
         runEnd = next;
     }
 
-    const int maxLen = static_cast<int>(runEnd - i);
-    int fitWidth = 0;
-    const int fitCount = GetTextFitMetrics(
+    std::vector<WrappedTextSlice> slices;
+    ComputeWrappedTextSlices(
         hdc,
         textRun.style,
         s.c_str() + i,
-        maxLen,
+        static_cast<int>(runEnd - i),
         avail,
-        &fitWidth);
+        slices);
 
-    if (fitCount <= 0) {
+    if (slices.empty()) {
         cut = NextTextUnit(s, i);
-        bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+        bestW = 0;
         return;
     }
 
-    cut = i + static_cast<size_t>(fitCount);
-    bestW = fitWidth;
-
-    if (cut < runEnd) {
-        size_t lastBreak = (size_t)-1;
-        size_t k = i;
-        while (k < cut) {
-            const size_t next = NextTextUnit(s, k);
-            if (next <= k) {
-                break;
-            }
-            if (IsBreakableAt(s, k)) {
-                lastBreak = next;
-            }
-            k = next;
-        }
-        if (lastBreak != (size_t)-1 && lastBreak > i) {
-            // Avoid rolling back too far (common in CJK text with punctuation),
-            // otherwise an entire phrase may be pushed to the next line.
-            const int maxRollbackUnits = 2;
-            int rollbackUnits = 0;
-            const char* begin = s.c_str();
-            size_t rollbackCursor = std::min(cut, runEnd);
-            while (rollbackCursor > lastBreak && rollbackCursor > i && rollbackUnits <= maxRollbackUnits) {
-                const char* current = begin + rollbackCursor;
-                const char* prev = CharPrev(begin + i, current);
-                if (prev >= current) {
-                    break;
-                }
-                rollbackCursor = static_cast<size_t>(prev - begin);
-                ++rollbackUnits;
-            }
-
-            if (rollbackCursor <= lastBreak && rollbackUnits <= maxRollbackUnits) {
-                cut = lastBreak;
-                //bestW = avail;
-                bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
-                forceCommitAfterSoftBreak = true;
-            }
-        }
+    const WrappedTextSlice& first = slices.front();
+    const size_t startInRun = std::min(first.startChar, runEnd - i);
+    const size_t endInRun = std::min(first.startChar + first.charLen, runEnd - i);
+    if (endInRun <= startInRun) {
+        cut = NextTextUnit(s, i);
+        bestW = 0;
+        return;
     }
+
+    cut = i + endInRun;
+    bestW = std::max(0, first.width);
+    forceCommitAfterSoftBreak = slices.size() > 1;
 #endif
 }
 
@@ -579,13 +549,22 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
             slices);
 
         if (slices.empty()) {
-            size_t cut = i;
-            int bestW = 0;
-            bool forceCommitAfterSoftBreak = false;
-            ComputeTextSliceForLine(hdc, textRun, s, i, cursorX > 0 ? avail : contentW, cut, bestW, forceCommitAfterSoftBreak);
+            const size_t cut = NextTextUnit(s, i);
             if (cut <= i) {
-                cut = NextTextUnit(s, i);
-                bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+                break;
+            }
+
+            int bestW = 0;
+            std::vector<WrappedTextSlice> unitSlices;
+            ComputeWrappedTextSlices(
+                hdc,
+                textRun.style,
+                s.c_str() + i,
+                static_cast<int>(cut - i),
+                cursorX > 0 ? avail : contentW,
+                unitSlices);
+            if (!unitSlices.empty()) {
+                bestW = std::max(0, unitSlices.front().width);
             }
 
             InlineSegment seg;
@@ -620,7 +599,17 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
 
             int segW = slice.width;
             if (segW <= 0) {
-                segW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + segStart, static_cast<int>(segLen));
+                std::vector<WrappedTextSlice> segSlices;
+                ComputeWrappedTextSlices(
+                    hdc,
+                    textRun.style,
+                    s.c_str() + segStart,
+                    static_cast<int>(segLen),
+                    contentW,
+                    segSlices);
+                if (!segSlices.empty()) {
+                    segW = std::max(0, segSlices.front().width);
+                }
             }
 
             InlineSegment seg;
@@ -656,7 +645,18 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
             if (next <= i) {
                 break;
             }
-            int segW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(next - i));
+            int segW = 0;
+            std::vector<WrappedTextSlice> unitSlices;
+            ComputeWrappedTextSlices(
+                hdc,
+                textRun.style,
+                s.c_str() + i,
+                static_cast<int>(next - i),
+                contentW,
+                unitSlices);
+            if (!unitSlices.empty()) {
+                segW = std::max(0, unitSlices.front().width);
+            }
 
             InlineSegment seg;
             seg.segType = SEG_TEXT;

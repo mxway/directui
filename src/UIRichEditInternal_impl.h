@@ -34,16 +34,9 @@ struct WrappedTextSlice {
 	WrappedTextSlice(size_t start, size_t len, int w) : startChar(start), charLen(len), width(w) {}
 };
 
-bool IsNewLine(char ch);
-bool IsBreakable(char c);
-bool IsBreakableAt(const std::string& text, size_t index);
 size_t ConsumeNewLine(const std::string& text, size_t index);
 size_t NextTextUnit(const std::string& text, size_t index);
 
-int MeasureTextWidth(HANDLE_DC hdc, const TextStyle& st, const std::string& text);
-int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const char* text, int length);
-int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const char* text, int length, int maxWidth,
-					  int* fitWidth);
 void ComputeWrappedTextSlices(HANDLE_DC hdc,
 							  const TextStyle& st,
 							  const char* text,
