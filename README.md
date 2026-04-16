@@ -134,7 +134,11 @@ make -j4
 
 ​    ![list_kylin](images/kylin_list.png)
 
-* UOS
+* RichEdit
+
+![richedit1](images/richedit_1.png)
+
+![richedit2](images/richedit_2.png)
 
 ## 技术交流
 
@@ -149,4 +153,4 @@ make -j4
 
 - [ ] Duilib原版本中的其它示例的移植
 
-- [ ] RichEdit控件
+- [ ] RichEdit控件，增加光标定位，与Edit控件相似，增加键盘操作。

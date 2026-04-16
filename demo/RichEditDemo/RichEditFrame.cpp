@@ -51,8 +51,7 @@ void RichEditFrame::Init() {
     fread(buffer,1,fileSize,fp);
     fclose(fp);
     auto textRun = make_shared<TextRun>();
-    textRun->SetFontFamily(UIString{u8"微软雅黑"});
-    textRun->SetFontSize(14);
+    textRun->SetFontFamily(UIString{u8"宋体"});
     textRun->SetText(UIString{buffer});
     Paragraph paragraph;
     paragraph.AppendRun(textRun);
