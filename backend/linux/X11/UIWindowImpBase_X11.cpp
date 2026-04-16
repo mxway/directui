@@ -60,6 +60,7 @@ static long OnMousePress(UIBaseWindow *baseWindow,uint32_t uMsg, UIPaintManager 
 long UIWindowImpBase::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
     bool bHandled = false;
     long lRes = 0;
+    XKeyEvent *keyEvent = nullptr;
     switch(uMsg){
         case DUI_WM_CREATE:
             lRes = this->OnCreate(uMsg, wParam, lParam, bHandled);
@@ -75,6 +76,10 @@ long UIWindowImpBase::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam)
             break;
         case DUI_WM_CLOSE:
             lRes = OnClose(uMsg, wParam, lParam, bHandled);
+            break;
+        case DUI_WM_KEYPRESS:
+            keyEvent = static_cast<XKeyEvent*>(wParam);
+            lRes = OnKeyPress(uMsg, XLookupKeysym(keyEvent,0),bHandled);
             break;
         default:
             break;

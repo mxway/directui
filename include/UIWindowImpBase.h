@@ -22,7 +22,7 @@ public:
     virtual long OnClose(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
     virtual long OnDestroy(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
     virtual long OnSize(uint32_t uMsg, WPARAM wParam, LPARAM lParam, bool &bHandled);
-
+    virtual long OnKeyPress(uint32_t uMsg, uint32_t keyCode, bool &bHandled);
 };
 
 #endif //DIRECTUI_UIWINDOWIMPBASE_H

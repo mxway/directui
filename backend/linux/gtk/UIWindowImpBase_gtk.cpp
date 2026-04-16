@@ -61,6 +61,7 @@ static long OnMouseRelease(HANDLE_WND widget, uint32_t uMsg, WPARAM wParam, LPAR
 long UIWindowImpBase::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam) {
     bool bHandled = false;
     long lRes = 0;
+    GdkEventKey *eventKey = nullptr;
     switch(uMsg){
         case DUI_WM_CREATE:
             lRes = this->OnCreate(uMsg, wParam, lParam, bHandled);
@@ -82,6 +83,10 @@ long UIWindowImpBase::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam)
             break;
         case DUI_WM_CLOSE:
             lRes = OnClose(uMsg, wParam, lParam, bHandled);
+            break;
+        case DUI_WM_KEYPRESS:
+            eventKey = (GdkEventKey*)wParam;
+            lRes = OnKeyPress(uMsg, eventKey->keyval,bHandled);
             break;
         default:
             break;

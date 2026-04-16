@@ -75,6 +75,9 @@ long UIWindowImpBase::HandleMessage(uint32_t uMsg, WPARAM wParam, LPARAM lParam)
         case DUI_WM_KILLFOCUS:
             lRes = OnKillFocus(uMsg, wParam,lParam, bHandle);
             break;
+        case DUI_WM_KEYPRESS:
+            lRes = OnKeyPress(uMsg, wParam, bHandle);
+            break;
         default:
             bHandle = false;
     }

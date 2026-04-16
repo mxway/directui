@@ -12,3 +12,7 @@ long UIWindowImpBase::OnKillFocus(uint32_t uMsg, WPARAM wParam, LPARAM lParam, b
     bHandled = false;
     return 0;
 }
+
+long UIWindowImpBase::OnKeyPress(uint32_t uMsg, uint32_t keyCode, bool& bHandled) {
+    return 0;
+}

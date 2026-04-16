@@ -160,6 +160,53 @@ void ComputeWrappedTextSlices(HANDLE_DC hdc,
     g_object_unref(context);
 }
 
+size_t HitTestTextCaret(HANDLE_DC hdc, const TextStyle& st, const char* text, int length, int x,
+                        int* caretX) {
+    if (caretX != nullptr) {
+        *caretX = 0;
+    }
+    if (text == nullptr || length <= 0) {
+        return 0;
+    }
+
+    HANDLE_FONT font = GetCachedFont(st);
+    PangoContext* context = CreateRichEditMeasurePangoContext(hdc);
+    PangoLayout* layout = pango_layout_new(context);
+    ApplyFontDescription(layout, font);
+    pango_layout_set_single_paragraph_mode(layout, TRUE);
+    pango_layout_set_text(layout, text, length);
+
+    size_t offset = 0;
+    if (x > 0) {
+        int index = 0;
+        int trailing = 0;
+        if (pango_layout_xy_to_index(layout, x * PANGO_SCALE, 0, &index, &trailing)) {
+            index = std::max(0, std::min(index, length));
+            offset = static_cast<size_t>(index);
+            for (int i = 0; i < trailing && static_cast<int>(offset) < length; ++i) {
+                const char* current = text + offset;
+                const char* next = CharNext(current);
+                if (next <= current || next > text + length) {
+                    break;
+                }
+                offset = static_cast<size_t>(next - text);
+            }
+        } else {
+            offset = static_cast<size_t>(length);
+        }
+    }
+
+    PangoRectangle strongPos = {};
+    pango_layout_get_cursor_pos(layout, static_cast<int>(offset), &strongPos, nullptr);
+    if (caretX != nullptr) {
+        *caretX = std::max(0, PANGO_PIXELS(strongPos.x));
+    }
+
+    g_object_unref(layout);
+    g_object_unref(context);
+    return std::min(static_cast<size_t>(length), offset);
+}
+
 void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int& descent, int& lineHeight) {
     HANDLE_FONT font = GetCachedFont(st);
     PangoContext* context = CreateRichEditMeasurePangoContext(hdc);

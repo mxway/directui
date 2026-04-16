@@ -1,5 +1,6 @@
 #include <UIRichEdit.h>
 #include "UIRichEditInternal_impl.h"
+#include "UIRichEditCaret.h"
 #include "UIRenderEngine.h"
 #include "UIPaintManager.h"
 #include "UIRenderClip.h"
@@ -19,6 +20,7 @@ UIRichEdit::UIRichEdit() {
     m_contentHeight = 0;
     m_layoutDirty = true;
     m_lastLayoutWidth = -1;
+    m_caret.reset(new UIRichEditCaret());
 }
 
 UIRichEdit::~UIRichEdit() {
@@ -26,6 +28,13 @@ UIRichEdit::~UIRichEdit() {
         m_pVerticalScrollBar->Delete();
         m_pVerticalScrollBar = nullptr;
     }
+}
+
+uint32_t UIRichEdit::GetControlFlags() const {
+    if (!IsEnabled()) {
+        return UILabel::GetControlFlags();
+    }
+    return UIFLAG_SETCURSOR | UIFLAG_TABSTOP;
 }
 
 UIString UIRichEdit::GetClass() const {
@@ -41,6 +50,9 @@ LPVOID UIRichEdit::GetInterface(const UIString& name) {
 
 void UIRichEdit::SetText(const UIString& text) {
     m_document.ClearParagraphs();
+    if (m_caret) {
+        m_caret->Clear();
+    }
     const char *end = text.GetData() + text.GetLength();
 
     const char *paragraphStart = text.GetData();
@@ -84,6 +96,9 @@ int UIRichEdit::GetTextViewWidth() const {
 
 void UIRichEdit::MarkLayoutDirty() {
     m_layoutDirty = true;
+    if (m_caret) {
+        m_caret->Clear();
+    }
     for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
         m_documentLayouts.documentLayouts[i].dirty = true;
     }
@@ -184,6 +199,19 @@ void UIRichEdit::SetManager(UIPaintManager* pManager, UIControl* pParent, bool b
 }
 
 void UIRichEdit::DoEvent(TEventUI& event) {
+    if (event.Type == UIEVENT_SETFOCUS) {
+        if (m_caret && m_caret->HasCaret()) {
+            m_caret->SetVisible(true);
+            Invalidate();
+        }
+    }
+    if (event.Type == UIEVENT_KILLFOCUS) {
+        if (m_caret && m_caret->IsVisible()) {
+            m_caret->SetVisible(false);
+            Invalidate();
+        }
+    }
+
     if (event.Type == UIEVENT_SCROLLWHEEL && m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) {
         int pos = m_pVerticalScrollBar->GetScrollPos();
         const int line = std::max(1, m_pVerticalScrollBar->GetLineSize());
@@ -226,6 +254,28 @@ void UIRichEdit::DoEvent(TEventUI& event) {
         if (hitScroll && event.Type == UIEVENT_MOUSEMOVE) {
             m_pVerticalScrollBar->DoEvent(event);
             return;
+        }
+    }
+
+    const bool activateCaret = (event.Type == UIEVENT_BUTTONDOWN || event.Type == UIEVENT_DBLCLICK);
+    if (activateCaret && IsEnabled() && m_manager != nullptr && m_caret) {
+        const RECT viewRc = GetTextViewRect();
+        UIRect rcView{viewRc};
+        if (rcView.IsPtIn(event.ptMouse)) {
+            SetFocus();
+            HANDLE_DC hdc = m_manager->GetPaintDC();
+            if (hdc != nullptr) {
+                EnsureLayoutReady(hdc);
+                const int scrollY = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) ? m_pVerticalScrollBar->GetScrollPos() : 0;
+                POINT documentPoint = {
+                    event.ptMouse.x - viewRc.left,
+                    event.ptMouse.y - viewRc.top + scrollY
+                };
+                m_caret->HitTest(hdc, documentPoint, m_document.GetParagraphs(), m_documentLayouts.documentLayouts);
+                m_caret->SetVisible(IsFocused() || (m_manager && m_manager->GetFocus() == this));
+                Invalidate();
+                return;
+            }
         }
     }
 
@@ -338,23 +388,11 @@ static void ComputeTextSliceForLine(HANDLE_DC hdc,
     bestW = fitWidth;
 
     if (cut < runEnd) {
-        size_t lastBreak = (size_t)-1;
-        size_t k = i;
-        while (k < cut) {
-            const size_t next = NextTextUnit(s, k);
-            if (next <= k) {
-                break;
-            }
-            if (IsBreakableAt(s, k)) {
-                lastBreak = next;
-            }
-            k = next;
+        if (!IsBreakableAt(s, cut)) {
+            cut--;
         }
-        if (lastBreak != (size_t)-1 && lastBreak > i) {
-            cut = lastBreak;
-            bestW = avail;
-            forceCommitAfterSoftBreak = true;
-        }
+        bestW = avail;
+        forceCommitAfterSoftBreak = true;
     }
 #else
     const size_t n = s.size();
@@ -471,6 +509,11 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
         i = cut;
 
         if (forceCommitAfterSoftBreak) {
+            newLineBytes = ConsumeNewLine(s, i);
+            if (newLineBytes > 0) {
+                //一行占满时，正好遇到换行，这时直接跳过换行，免得多出一行空行。
+                i += newLineBytes;
+            }
             CommitLine(pl, line, cursorY);
             cursorX = 0;
             if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
@@ -479,12 +522,11 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
                 }
                 return;
             }
-            continue;
         }
 
         // if next is newline, consume and commit line
 
-        newLineBytes = ConsumeNewLine(s, i);
+        /*newLineBytes = ConsumeNewLine(s, i);
         if (newLineBytes > 0) {
             i += newLineBytes;
             CommitLine(pl, line, cursorY);
@@ -495,7 +537,7 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
                 }
                 return;
             }
-        }
+        }*/
     }
 #else
     while (i < n) {
@@ -778,6 +820,82 @@ int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY, int
     return pl.height;
 }
 
+void UIRichEdit::EnsureLayoutReady(HANDLE_DC hDC) {
+    const size_t paragraphCount = m_document.GetParagraphCount();
+    if (m_documentLayouts.documentLayouts.size() != paragraphCount) {
+        m_documentLayouts.documentLayouts.assign(paragraphCount, ParagraphLayout());
+        m_layoutDirty = true;
+    }
+
+    if (GetTextViewWidth() != m_lastLayoutWidth) {
+        MarkLayoutDirty();
+    }
+
+    const bool hadScrollVisibleBeforeLayout = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+    bool handledHiddenToVisibleByPrepass = false;
+
+    if (m_layoutDirty) {
+        RECT baseRc = m_rcItem;
+        baseRc.left += m_rcTextPadding.left;
+        baseRc.top += m_rcTextPadding.top;
+        baseRc.right -= m_rcTextPadding.right;
+        baseRc.bottom -= m_rcTextPadding.bottom;
+        if (baseRc.right < baseRc.left) baseRc.right = baseRc.left;
+        if (baseRc.bottom < baseRc.top) baseRc.bottom = baseRc.top;
+
+        const int viewHeight = std::max(0, static_cast<int>(baseRc.bottom - baseRc.top));
+        const int noScrollWidth = std::max(12, static_cast<int>(baseRc.right - baseRc.left));
+        const int scrollBarWidth = (m_enableVerticalScrollBar && m_pVerticalScrollBar) ? std::max(0, m_pVerticalScrollBar->GetFixedWidth()) : 0;
+        const int reducedWidth = std::max(12, noScrollWidth - scrollBarWidth);
+
+        const bool canProbeOverflow =
+            (m_enableVerticalScrollBar && m_pVerticalScrollBar && !hadScrollVisibleBeforeLayout && viewHeight > 0 && scrollBarWidth > 0);
+
+        if (canProbeOverflow) {
+            bool overflowDetected = false;
+            DoIncrementalRelayout(hDC, noScrollWidth, viewHeight, &overflowDetected);
+            if (overflowDetected) {
+                handledHiddenToVisibleByPrepass = true;
+                MarkLayoutDirty();
+                DoIncrementalRelayout(hDC, reducedWidth, -1, nullptr);
+            }
+        } else {
+            DoIncrementalRelayout(hDC, std::max(12, GetTextViewWidth()), -1, nullptr);
+        }
+        m_layoutDirty = false;
+    }
+
+    int docBottom = 0;
+    for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
+        ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
+        docBottom = std::max(docBottom, pl.startY + pl.height);
+    }
+    m_contentHeight = std::max(0, docBottom);
+
+    const bool oldScrollVisible = hadScrollVisibleBeforeLayout;
+    UpdateVerticalScrollBar();
+    const bool newScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
+
+    if (oldScrollVisible != newScrollVisible) {
+        const bool hiddenToVisibleAlreadyHandled = (!oldScrollVisible && newScrollVisible && handledHiddenToVisibleByPrepass);
+        if (!hiddenToVisibleAlreadyHandled) {
+            MarkLayoutDirty();
+            DoIncrementalRelayout(hDC, std::max(12, GetTextViewWidth()), -1, nullptr);
+            m_layoutDirty = false;
+
+            docBottom = 0;
+            for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
+                ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
+                docBottom = std::max(docBottom, pl.startY + pl.height);
+            }
+            m_contentHeight = std::max(0, docBottom);
+            UpdateVerticalScrollBar();
+        }
+    }
+
+    m_lastLayoutWidth = GetTextViewWidth();
+}
+
 
 void UIRichEdit::DoIncrementalRelayout(HANDLE_DC hdc, int contentW, int stopAfterHeight, bool* stoppedEarly) {
 
@@ -860,80 +978,7 @@ static const ImageRun* GetImageRun(Paragraph& para, size_t runIndex) {
 }
 
 void UIRichEdit::PaintText(HANDLE_DC hDC) {
-    const size_t paragraphCount = m_document.GetParagraphCount();
-    if (m_documentLayouts.documentLayouts.size() != paragraphCount) {
-        m_documentLayouts.documentLayouts.assign(paragraphCount, ParagraphLayout());
-        m_layoutDirty = true;
-    }
-
-    if (GetTextViewWidth() != m_lastLayoutWidth) {
-        MarkLayoutDirty();
-    }
-
-    const bool hadScrollVisibleBeforeLayout = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
-    bool handledHiddenToVisibleByPrepass = false;
-
-    if (m_layoutDirty) {
-        RECT baseRc = m_rcItem;
-        baseRc.left += m_rcTextPadding.left;
-        baseRc.top += m_rcTextPadding.top;
-        baseRc.right -= m_rcTextPadding.right;
-        baseRc.bottom -= m_rcTextPadding.bottom;
-        if (baseRc.right < baseRc.left) baseRc.right = baseRc.left;
-        if (baseRc.bottom < baseRc.top) baseRc.bottom = baseRc.top;
-
-        const int viewHeight = std::max(0, static_cast<int>(baseRc.bottom - baseRc.top));
-        const int noScrollWidth = std::max(12, static_cast<int>(baseRc.right - baseRc.left));
-        const int scrollBarWidth = (m_enableVerticalScrollBar && m_pVerticalScrollBar) ? std::max(0, m_pVerticalScrollBar->GetFixedWidth()) : 0;
-        const int reducedWidth = std::max(12, noScrollWidth - scrollBarWidth);
-
-        const bool canProbeOverflow =
-            (m_enableVerticalScrollBar && m_pVerticalScrollBar && !hadScrollVisibleBeforeLayout && viewHeight > 0 && scrollBarWidth > 0);
-
-        if (canProbeOverflow) {
-            bool overflowDetected = false;
-            DoIncrementalRelayout(hDC, noScrollWidth, viewHeight, &overflowDetected);
-            if (overflowDetected) {
-                handledHiddenToVisibleByPrepass = true;
-                MarkLayoutDirty();
-                DoIncrementalRelayout(hDC, reducedWidth, -1, nullptr);
-            }
-        } else {
-            DoIncrementalRelayout(hDC, std::max(12, GetTextViewWidth()), -1, nullptr);
-        }
-        m_layoutDirty = false;
-    }
-
-    int docBottom = 0;
-    for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
-        ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
-        docBottom = std::max(docBottom, pl.startY + pl.height);
-    }
-    m_contentHeight = std::max(0, docBottom);
-
-    const bool oldScrollVisible = hadScrollVisibleBeforeLayout;
-    UpdateVerticalScrollBar();
-    const bool newScrollVisible = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible());
-
-    // 关键修复：显隐变化会改变 text view 宽度，必须立刻二次重排
-    if (oldScrollVisible != newScrollVisible) {
-        const bool hiddenToVisibleAlreadyHandled = (!oldScrollVisible && newScrollVisible && handledHiddenToVisibleByPrepass);
-        if (!hiddenToVisibleAlreadyHandled) {
-            MarkLayoutDirty();
-            DoIncrementalRelayout(hDC, std::max(12, GetTextViewWidth()), -1, nullptr);
-            m_layoutDirty = false;
-
-            docBottom = 0;
-            for (size_t i = 0; i < m_documentLayouts.documentLayouts.size(); ++i) {
-                ParagraphLayout& pl = m_documentLayouts.documentLayouts[i];
-                docBottom = std::max(docBottom, pl.startY + pl.height);
-            }
-            m_contentHeight = std::max(0, docBottom);
-            UpdateVerticalScrollBar();
-        }
-    }
-
-    m_lastLayoutWidth = GetTextViewWidth();
+    EnsureLayoutReady(hDC);
 
     const int scrollY = (m_pVerticalScrollBar && m_pVerticalScrollBar->IsVisible()) ? m_pVerticalScrollBar->GetScrollPos() : 0;
     RECT viewRc = GetTextViewRect();
@@ -982,6 +1027,11 @@ void UIRichEdit::PaintText(HANDLE_DC hDC) {
             }
         }
     }
+
+    if (IsFocused() && m_caret && m_caret->HasCaret()) {
+        const uint32_t caretColor = (m_textColor != 0) ? m_textColor : (m_manager ? m_manager->GetDefaultFontColor() : 0xFF000000);
+        m_caret->Paint(hDC, viewRc, scrollY, caretColor);
+    }
 }
 
 bool UIRichEdit::DoPaint(HANDLE_DC hDC, const RECT& rcPaint, UIControl* pStopControl) {
@@ -1005,6 +1055,9 @@ SIZE UIRichEdit::EstimateSize(SIZE szAvailable) {
 
 void UIRichEdit::AppendParagraph(const Paragraph& paragraph) {
     m_document.AppendParagraph(paragraph);
+    if (m_caret) {
+        m_caret->Clear();
+    }
     m_layoutDirty = true;
     Invalidate();
 }

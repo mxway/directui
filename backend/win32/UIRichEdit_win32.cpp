@@ -1,6 +1,8 @@
 ﻿#include <UIRichEdit.h>
 #include "EncodingTransform.h"
 #include "../../src/UIRichEditInternal_impl.h"
+#include <algorithm>
+#include <vector>
 #include <unordered_map>
 
 namespace {
@@ -58,7 +60,14 @@ bool IsNewLine(wchar_t ch) {
 }
 
 bool IsBreakable(wchar_t c) {
-    return c == L' ' || c == L'\t' || c == L'-' || c == L',' || c == L'，' || c == L'。' || c == L';' || c == L'：' || c == L':';
+    wchar_t forbiddenChars[] = {L'，', L'。', L'、', L'！', L'？', L'：', L'；', L'（', L'）',L'【',L'】',L'“',L'”',
+        L'《',L'》',L'「',L'」',L'『',L'』',L'"', L',', L'.', L'!', L'?', L':', L';', L'(', L')', L'[', L']'};
+    for (int i=0;i<sizeof(forbiddenChars)/sizeof(wchar_t);i++) {
+        if (c == forbiddenChars[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 size_t ConsumeNewLine(const std::wstring& text, size_t index) {
@@ -140,6 +149,63 @@ int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, i
     }
     SelectObject(hdc, old);
     return fitCount;
+}
+
+size_t HitTestTextCaret(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int x,
+                       int* caretX) {
+    if (caretX) {
+        *caretX = 0;
+    }
+    if (text == nullptr || length <= 0) {
+        return 0;
+    }
+
+    HFONT f = GetCachedFont(st);
+    HFONT old = (HFONT)SelectObject(hdc, f);
+    std::vector<int> extents(static_cast<size_t>(length), 0);
+    SIZE sz{};
+    const BOOL ok = GetTextExtentExPointW(hdc, text, length, 0x7fffffff, nullptr, extents.data(), &sz);
+    SelectObject(hdc, old);
+    if (!ok || extents.empty()) {
+        return 0;
+    }
+
+    if (x <= 0) {
+        return 0;
+    }
+
+    const int totalWidth = extents.back();
+    if (x >= totalWidth) {
+        if (caretX) {
+            *caretX = totalWidth;
+        }
+        return static_cast<size_t>(length);
+    }
+
+    for (int i = 0; i < length; ++i) {
+        const int current = extents[static_cast<size_t>(i)];
+        if (x > current) {
+            continue;
+        }
+
+        const int previous = (i > 0) ? extents[static_cast<size_t>(i - 1)] : 0;
+        if ((x - previous) < (current - x)) {
+            if (caretX) {
+                *caretX = previous;
+            }
+            return static_cast<size_t>(i);
+        }
+
+        if (caretX) {
+            *caretX = current;
+        }
+        return static_cast<size_t>(i + 1);
+    }
+
+    if (caretX) {
+        *caretX = totalWidth;
+    }
+    return static_cast<size_t>(length);
 }
 
 void GetTextMetricsForStyle(HANDLE_DC hdc, const TextStyle& st, int& ascent, int& descent, int& lineHeight) {

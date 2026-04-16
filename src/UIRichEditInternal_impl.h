@@ -24,6 +24,8 @@ int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const wchar_t* tex
 int GetTextFitCount(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth);
 int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth,
 					  int* fitWidth);
+size_t HitTestTextCaret(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int x,
+					 int* caretX);
 void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, const std::wstring& text);
 #else
 struct WrappedTextSlice {
@@ -43,6 +45,8 @@ void ComputeWrappedTextSlices(HANDLE_DC hdc,
 							  int length,
 							  int lineWidth,
 							  std::vector<WrappedTextSlice>& outSlices);
+size_t HitTestTextCaret(HANDLE_DC hdc, const TextStyle& st, const char* text, int length, int x,
+					 int* caretX);
 void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, const std::string& text);
 #endif
 

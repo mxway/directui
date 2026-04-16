@@ -174,10 +174,14 @@ struct RichDocumentLayout {
     std::vector<ParagraphLayout> documentLayouts;
 };
 
+class UIRichEditCaret;
+
 class UIRichEdit : public UILabel {
 public:
     UIRichEdit();
     ~UIRichEdit() override;
+
+    uint32_t GetControlFlags() const override;
 
     UIString GetClass() const override;
 
@@ -202,6 +206,7 @@ public:
     void AppendParagraph(const Paragraph& paragraph);
 
 private:
+    void    EnsureLayoutReady(HANDLE_DC hDC);
     void    DoIncrementalRelayout(HANDLE_DC hDC, int contentW, int stopAfterHeight = -1, bool* stoppedEarly = nullptr);
     int     LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY, int contentW, int stopAfterHeight = -1, bool* stoppedEarly = nullptr);
     RECT    GetTextViewRect() const;
@@ -221,6 +226,7 @@ protected:
     bool m_layoutDirty;
     int m_lastLayoutWidth;
     UIString m_vScrollBarStyle;
+    std::unique_ptr<UIRichEditCaret> m_caret;
 };
 
 #endif //DIRECTUI_UIRICHEDIT_H
