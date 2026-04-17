@@ -6,6 +6,9 @@
 #include "UIRenderClip.h"
 #include <cstring>
 
+#include "UIFont.h"
+#include "UIResourceMgr.h"
+
 void SetSegmentRect(UIRect& rect, int left, int top, int right, int bottom) {
     rect.left = left;
     rect.top = top;
@@ -67,7 +70,6 @@ void UIRichEdit::SetText(const UIString& text) {
         }else {
             auto textRun = make_shared<TextRun>();
             textRun->SetText(UIString{paragraphStart,static_cast<int>(paragraphEnd-paragraphStart)});
-            textRun->style.textColor = m_textColor;
             Paragraph   paragraph;
             paragraph.AppendRun(textRun);
             m_document.AppendParagraph(paragraph);
@@ -341,100 +343,6 @@ void CommitLine(ParagraphLayout& pl, LineLayout& line, int& cursorY) {
     line.yTop = cursorY;
 }
 
-static void ComputeTextSliceForLine(HANDLE_DC hdc,
-                                    const TextRun& textRun,
-#if defined(_WIN32) || defined(WIN32)
-                                    const std::wstring& s,
-#else
-                                    const std::string& s,
-#endif
-                                    size_t i,
-                                    int avail,
-                                    size_t& cut,
-                                    int& bestW,
-                                    bool& forceCommitAfterSoftBreak) {
-    cut = i;
-    bestW = 0;
-    forceCommitAfterSoftBreak = false;
-
-#if defined(_WIN32) || defined(WIN32)
-    const size_t n = s.size();
-    size_t runEnd = i;
-    while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
-        const size_t next = NextTextUnit(s, runEnd);
-        if (next <= runEnd) {
-            break;
-        }
-        runEnd = next;
-    }
-
-    const int maxLen = static_cast<int>(runEnd - i);
-    int fitWidth = 0;
-    const int fitCount = GetTextFitMetrics(
-        hdc,
-        textRun.style,
-        s.c_str() + i,
-        maxLen,
-        avail,
-        &fitWidth);
-
-    if (fitCount <= 0) {
-        cut = NextTextUnit(s, i);
-        bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
-        return;
-    }
-
-    cut = i + static_cast<size_t>(fitCount);
-    bestW = fitWidth;
-
-    if (cut < runEnd) {
-        if (!IsBreakableAt(s, cut)) {
-            cut--;
-        }
-        bestW = avail;
-        forceCommitAfterSoftBreak = true;
-    }
-#else
-    const size_t n = s.size();
-    size_t runEnd = i;
-    while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
-        const size_t next = NextTextUnit(s, runEnd);
-        if (next <= runEnd) {
-            break;
-        }
-        runEnd = next;
-    }
-
-    std::vector<WrappedTextSlice> slices;
-    ComputeWrappedTextSlices(
-        hdc,
-        textRun.style,
-        s.c_str() + i,
-        static_cast<int>(runEnd - i),
-        avail,
-        slices);
-
-    if (slices.empty()) {
-        cut = NextTextUnit(s, i);
-        bestW = 0;
-        return;
-    }
-
-    const WrappedTextSlice& first = slices.front();
-    const size_t startInRun = std::min(first.startChar, runEnd - i);
-    const size_t endInRun = std::min(first.startChar + first.charLen, runEnd - i);
-    if (endInRun <= startInRun) {
-        cut = NextTextUnit(s, i);
-        bestW = 0;
-        return;
-    }
-
-    cut = i + endInRun;
-    bestW = std::max(0, first.width);
-    forceCommitAfterSoftBreak = slices.size() > 1;
-#endif
-}
-
 static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t runIndex,
                                 int contentW,
                                 int& cursorX, int& cursorY,
@@ -523,208 +431,69 @@ static void LayoutTextRunInline(HANDLE_DC hdc, const TextRun & textRun, size_t r
                 return;
             }
         }
-
-        // if next is newline, consume and commit line
-
-        /*newLineBytes = ConsumeNewLine(s, i);
-        if (newLineBytes > 0) {
-            i += newLineBytes;
-            CommitLine(pl, line, cursorY);
-            cursorX = 0;
-            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
-                if (stoppedEarly) {
-                    *stoppedEarly = true;
-                }
-                return;
-            }
-        }*/
     }
 #else
-    while (i < n) {
-        size_t newLineBytes = ConsumeNewLine(s, i);
-        if (newLineBytes > 0) {
-            if (line.segs.empty()) {
-                line.baseLine = std::max(line.baseLine, asc);
-                line.height = std::max(line.height, asc + desc);
-            }
+    std::vector<WrappedTextSlice> slices;
+    if (textRun.text.length() == 0) {
+        return;
+    }
+    if (cursorX != 0) {
+        //一行包含多个run。每个run可能有不同的样式
+        ComputeWrappedTextSlices(hdc, textRun.style, s.c_str(), s.length(),contentW-cursorX, slices);
+        if (slices.size() == 0 || slices.front().width==0) {
             CommitLine(pl, line, cursorY);
-            cursorX = 0;
-            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
-                if (stoppedEarly) {
-                    *stoppedEarly = true;
-                }
-                return;
-            }
-            i += newLineBytes;
-            continue;
-        }
-
-        int avail = contentW - cursorX;
-        if (avail <= 8) {
-            CommitLine(pl, line, cursorY);
-            cursorX = 0;
-            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
-                if (stoppedEarly) {
-                    *stoppedEarly = true;
-                }
-                return;
-            }
-            avail = contentW;
-        }
-
-        size_t runEnd = i;
-        while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
-            const size_t next = NextTextUnit(s, runEnd);
-            if (next <= runEnd) {
-                break;
-            }
-            runEnd = next;
-        }
-
-        std::vector<WrappedTextSlice> slices;
-        ComputeWrappedTextSlices(
-            hdc,
-            textRun.style,
-            s.c_str() + i,
-            static_cast<int>(runEnd - i),
-            cursorX > 0 ? avail : contentW,
-            slices);
-
-        if (slices.empty()) {
-            const size_t cut = NextTextUnit(s, i);
-            if (cut <= i) {
-                break;
-            }
-
-            int bestW = 0;
-            std::vector<WrappedTextSlice> unitSlices;
-            ComputeWrappedTextSlices(
-                hdc,
-                textRun.style,
-                s.c_str() + i,
-                static_cast<int>(cut - i),
-                cursorX > 0 ? avail : contentW,
-                unitSlices);
-            if (!unitSlices.empty()) {
-                bestW = std::max(0, unitSlices.front().width);
-            }
-
+        }else {
+            //cursorX += slices.front().width;
             InlineSegment seg;
             seg.segType = SEG_TEXT;
             seg.runIndex = runIndex;
-            seg.startChar = i;
-            seg.charLen = cut - i;
+            seg.startChar = slices.front().startChar;
+            seg.charLen = slices.front().charLen;
             seg.ascent = asc;
             seg.descent = desc;
-            SetSegmentRect(seg.rc, cursorX, line.yTop, cursorX + bestW, line.yTop + lineH);
+            SetSegmentRect(seg.rc, cursorX, line.yTop, cursorX + slices.front().width, line.yTop + lineH);
+
+            cursorX += slices.front().width;
             line.baseLine = std::max(line.baseLine, asc);
             line.height = std::max(line.height, asc + desc);
             line.segs.push_back(seg);
-            cursorX += bestW;
-            i = cut;
+            if (slices.front().charLen == textRun.text.length()) {
+                return; //一个run的文本已经全部放到一行中。
+            }
+            i += slices.front().charLen;
+            CommitLine(pl,line,cursorY);
+        }
+    }
+    ComputeWrappedTextSlices(
+        hdc,
+        textRun.style,
+        s.c_str() + i,
+        s.length(),contentW,
+        slices);
+    for (size_t si = 0; si < slices.size(); ++si) {
+        const WrappedTextSlice& slice = slices[si];
+        if (slice.charLen == 0) {
+            CommitLine(pl,line,cursorY);
             continue;
         }
 
-        size_t consumed = 0;
-        const size_t sliceCount = cursorX > 0 ? std::min<size_t>(1, slices.size()) : slices.size();
-        for (size_t si = 0; si < sliceCount; ++si) {
-            const WrappedTextSlice& slice = slices[si];
-            if (slice.charLen == 0) {
-                continue;
-            }
+        InlineSegment seg;
+        seg.segType = SEG_TEXT;
+        seg.runIndex = runIndex;
+        seg.startChar = slice.startChar + i;
+        seg.charLen = slice.charLen;
+        seg.ascent = asc;
+        seg.descent = desc;
+        SetSegmentRect(seg.rc, 0, line.yTop, contentW, line.yTop + lineH);
 
-            size_t segStart = i + std::min(slice.startChar, runEnd - i);
-            size_t segLen = std::min(slice.charLen, runEnd - segStart);
-            if (segLen == 0) {
-                continue;
-            }
-
-            int segW = slice.width;
-            if (segW <= 0) {
-                std::vector<WrappedTextSlice> segSlices;
-                ComputeWrappedTextSlices(
-                    hdc,
-                    textRun.style,
-                    s.c_str() + segStart,
-                    static_cast<int>(segLen),
-                    contentW,
-                    segSlices);
-                if (!segSlices.empty()) {
-                    segW = std::max(0, segSlices.front().width);
-                }
-            }
-
-            InlineSegment seg;
-            seg.segType = SEG_TEXT;
-            seg.runIndex = runIndex;
-            seg.startChar = segStart;
-            seg.charLen = segLen;
-            seg.ascent = asc;
-            seg.descent = desc;
-            SetSegmentRect(seg.rc, cursorX, line.yTop, cursorX + segW, line.yTop + lineH);
-
-            line.baseLine = std::max(line.baseLine, asc);
-            line.height = std::max(line.height, asc + desc);
-            line.segs.push_back(seg);
-            cursorX += segW;
-            consumed = std::max(consumed, (segStart + segLen) - i);
-
-            const bool wrappedToNextLine = (si + 1 < sliceCount);
-            if (wrappedToNextLine) {
-                CommitLine(pl, line, cursorY);
-                cursorX = 0;
-                if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
-                    if (stoppedEarly) {
-                        *stoppedEarly = true;
-                    }
-                    return;
-                }
-            }
-        }
-
-        if (consumed == 0) {
-            const size_t next = NextTextUnit(s, i);
-            if (next <= i) {
-                break;
-            }
-            int segW = 0;
-            std::vector<WrappedTextSlice> unitSlices;
-            ComputeWrappedTextSlices(
-                hdc,
-                textRun.style,
-                s.c_str() + i,
-                static_cast<int>(next - i),
-                contentW,
-                unitSlices);
-            if (!unitSlices.empty()) {
-                segW = std::max(0, unitSlices.front().width);
-            }
-
-            InlineSegment seg;
-            seg.segType = SEG_TEXT;
-            seg.runIndex = runIndex;
-            seg.startChar = i;
-            seg.charLen = next - i;
-            seg.ascent = asc;
-            seg.descent = desc;
-            SetSegmentRect(seg.rc, cursorX, line.yTop, cursorX + segW, line.yTop + lineH);
-
-            line.baseLine = std::max(line.baseLine, asc);
-            line.height = std::max(line.height, asc + desc);
-            line.segs.push_back(seg);
-            cursorX += segW;
-            i = next;
-            continue;
-        }
-
-        i += consumed;
-        if (cursorX > 0 && i < runEnd) {
-            CommitLine(pl, line, cursorY);
-            cursorX = 0;
-            if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
-                if (stoppedEarly) {
-                    *stoppedEarly = true;
-                }
+        line.baseLine = std::max(line.baseLine, asc);
+        line.height = std::max(line.height, asc + desc);
+        line.segs.push_back(seg);
+        cursorX = 0;
+        CommitLine(pl,line, cursorY);
+        if (stopAfterHeight >= 0 && cursorY > stopAfterHeight) {
+            if (stoppedEarly) {
+                *stoppedEarly = true;
                 return;
             }
         }
@@ -763,11 +532,29 @@ static void LayoutImageRunInline(const ImageRun& ir, size_t runIndex,
     cursorX += ir.width + 2;
 }
 
+static void SetDefaultStyle(TextRun *tr, UIFont *defaultFont, uint32_t defaultTextColor) {
+    if (tr->style.textColor == 0) {
+        tr->style.textColor = defaultTextColor;
+    }
+    if (tr->style.fontFamily.empty() && (!defaultFont->GetFontName().IsEmpty())) {
+        tr->SetFontFamily(defaultFont->GetFontName());
+    }
+    if (tr->style.fontSize == 0) {
+        tr->SetFontSize(defaultFont->GetSize());
+    }
+}
+
 int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY, int contentW, int stopAfterHeight, bool* stoppedEarly) {
     std::vector<ParagraphLayout> &paragraphLayout = m_documentLayouts.documentLayouts;
     ParagraphLayout& pl = paragraphLayout[pIndex];
     pl.startY = startY;
     pl.lines.clear();
+
+    uint32_t defaultTextColor = m_textColor;
+    if (defaultTextColor == 0) {
+        defaultTextColor = (m_manager==nullptr ? 0xff000000 : m_manager->GetDefaultFontColor());
+    }
+    UIFont *font = UIResourceMgr::GetInstance().GetFont(m_fontId);
 
     Paragraph& para = m_document.GetParagraphAt(pIndex);
     contentW = std::max(12, contentW);
@@ -793,6 +580,7 @@ int UIRichEdit::LayoutOneParagraph(HANDLE_DC hdc, size_t pIndex, int startY, int
         if (rb->Type() == RUN_TEXT) {
             TextRun *tr = static_cast<TextRun*>(rb.get());
             if (tr) {
+                SetDefaultStyle(tr, font, defaultTextColor);
                 LayoutTextRunInline(hdc, *tr, r, contentW, cursorX, cursorY, line, pl, stopAfterHeight, stoppedEarly);
                 if (stoppedEarly && *stoppedEarly) {
                     pl.height = std::max(20, cursorY - startY);

@@ -32,10 +32,10 @@ struct TextStyle {
     int          lineExtra;
     TextStyle()
         : fontFamily(),
-            fontSize(12),
+            fontSize(0),
             bold(false),
             italic(false),
-            textColor(0xFF000000),
+            textColor(0),
             lineExtra(12) {}
 };
 

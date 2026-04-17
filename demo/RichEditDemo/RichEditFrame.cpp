@@ -50,13 +50,13 @@ void RichEditFrame::Init() {
     memset(buffer,0,fileSize + 2);
     fread(buffer,1,fileSize,fp);
     fclose(fp);
-    auto textRun = make_shared<TextRun>();
-    textRun->SetFontFamily(UIString{u8"宋体"});
-    textRun->SetText(UIString{buffer});
-    Paragraph paragraph;
-    paragraph.AppendRun(textRun);
-    pRichEdit->AppendParagraph(paragraph);
-    //pRichEdit->SetText(UIString{buffer});
+    //auto textRun = make_shared<TextRun>();
+    //textRun->SetFontFamily(UIString{u8"宋体"});
+    //textRun->SetText(UIString{buffer});
+    //Paragraph paragraph;
+    //paragraph.AppendRun(textRun);
+    //pRichEdit->AppendParagraph(paragraph);
+    pRichEdit->SetText(UIString{buffer});
 
     delete [] buffer;
 }

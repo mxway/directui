@@ -120,7 +120,6 @@ void ComputeWrappedTextSlices(HANDLE_DC hdc,
     PangoLayout* layout = pango_layout_new(context);
     ApplyFontDescription(layout, font);
     pango_layout_set_text(layout, text, length);
-    pango_layout_set_single_paragraph_mode(layout, TRUE);
     pango_layout_set_wrap(layout, PANGO_WRAP_WORD_CHAR);
     pango_layout_set_width(layout, lineWidth * PANGO_SCALE);
 

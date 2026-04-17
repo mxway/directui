@@ -55,10 +55,6 @@ void TextRun::SetText(const UIString& utf8Text) {
     delete []ucs2String;
 }
 
-bool IsNewLine(wchar_t ch) {
-    return ch == L'\n' || ch == L'\r';
-}
-
 bool IsBreakable(wchar_t c) {
     wchar_t forbiddenChars[] = {L'，', L'。', L'、', L'！', L'？', L'：', L'；', L'（', L'）',L'【',L'】',L'“',L'”',
         L'《',L'》',L'「',L'」',L'『',L'』',L'"', L',', L'.', L'!', L'?', L':', L';', L'(', L')', L'[', L']'};
@@ -102,15 +98,6 @@ HANDLE_FONT CreateFontFromStyle(const TextStyle& s) {
     );
 }
 
-int MeasureTextWidth(HANDLE_DC hdc, const TextStyle& st, const std::wstring& text) {
-    HFONT f = GetCachedFont(st);
-    HFONT old = (HFONT)SelectObject(hdc, f);
-    SIZE sz{};
-    if (!text.empty()) GetTextExtentPoint32W(hdc, text.c_str(), (int)text.size(), &sz);
-    SelectObject(hdc, old);
-    return sz.cx;
-}
-
 int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length) {
     if (text == nullptr || length <= 0) {
         return 0;
@@ -121,10 +108,6 @@ int MeasureTextWidthRange(HANDLE_DC hdc, const TextStyle& st, const wchar_t* tex
     GetTextExtentPoint32W(hdc, text, length, &sz);
     SelectObject(hdc, old);
     return sz.cx;
-}
-
-int GetTextFitCount(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth) {
-    return GetTextFitMetrics(hdc, st, text, length, maxWidth, nullptr);
 }
 
 int GetTextFitMetrics(HANDLE_DC hdc, const TextStyle& st, const wchar_t* text, int length, int maxWidth,
@@ -230,4 +213,53 @@ void DrawTextRunSegment(HANDLE_DC hdc, const TextStyle& st, const UIRect& rc, co
     SetBkMode(hdc, TRANSPARENT);
     TextOutW(hdc, rc.left, rc.top, text.c_str(), static_cast<int>(text.size()));
     SelectObject(hdc, old);
+}
+
+void ComputeTextSliceForLine(HANDLE_DC hdc,
+                                    const TextRun& textRun,
+                                    const std::wstring& s,
+                                    size_t i,
+                                    int avail,
+                                    size_t& cut,
+                                    int& bestW,
+                                    bool& forceCommitAfterSoftBreak) {
+    cut = i;
+    bestW = 0;
+    forceCommitAfterSoftBreak = false;
+    const size_t n = s.size();
+    size_t runEnd = i;
+    while (runEnd < n && ConsumeNewLine(s, runEnd) == 0) {
+        const size_t next = NextTextUnit(s, runEnd);
+        if (next <= runEnd) {
+            break;
+        }
+        runEnd = next;
+    }
+
+    const int maxLen = static_cast<int>(runEnd - i);
+    int fitWidth = 0;
+    const int fitCount = GetTextFitMetrics(
+        hdc,
+        textRun.style,
+        s.c_str() + i,
+        maxLen,
+        avail,
+        &fitWidth);
+
+    if (fitCount <= 0) {
+        cut = NextTextUnit(s, i);
+        bestW = MeasureTextWidthRange(hdc, textRun.style, s.c_str() + i, static_cast<int>(cut - i));
+        return;
+    }
+
+    cut = i + static_cast<size_t>(fitCount);
+    bestW = fitWidth;
+
+    if (cut < runEnd) {
+        if (!IsBreakableAt(s, cut)) {
+            cut--;
+        }
+        bestW = avail;
+        forceCommitAfterSoftBreak = true;
+    }
 }
